@@ -23,6 +23,7 @@ pub(crate) fn parse(text: &str, parameters: usize) -> Result<Vec<Mapping>, Strin
         }
         Ok(parts.into_iter().map(str::to_owned).collect())
     }
+    let text = text.strip_prefix("fresh;").unwrap_or(text);
     let mut mappings = vec![];
     for mapping in text.split(';') {
         let (target, source) = mapping
@@ -97,10 +98,11 @@ pub(crate) fn apply(
     types: &BTreeMap<String, Type>,
 ) -> Result<(), String> {
     let mut candidate = base.clone();
+    let preserve_fresh = text.starts_with("fresh;");
     for (target, argument, source) in parse(text, parameters.len())? {
         let target = resolve(result, &target, types)?;
         let source = resolve(&parameters[argument], &source, types)?;
-        if target.is_empty() {
+        if target.is_empty() && !preserve_fresh {
             candidate.returned.fresh = false;
         }
         candidate.returned.aliases.insert(ReturnAlias {

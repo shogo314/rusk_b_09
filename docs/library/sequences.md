@@ -41,7 +41,7 @@ wt grid[1];
 | `reverse(a)` | 要素の並びを反転 | O(N) |
 | `contains(a, x)` | 値が一致する要素の有無 | O(N)回の比較 |
 | `find(a, x)` | 最初の位置をOption<Int>で返す | O(N)回の比較 |
-| `sum(a)` / `sum(a, initial)` | Vec<Int>の検査付き合計。省略時の初期値は0 | O(N) |
+| `sum(a)` / `sum(a, initial)` | 走査順の合計。省略時の初期値は要素型の`T()` | O(N)回の加算。[集計](algorithms.md#aggregation) |
 
 要素を取得した後に配列が拡張・削除されても、取得済みの要素への共有はそのオブジェクトを保持します。配列のイテレータの有効性とは別の規則です。
 

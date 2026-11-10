@@ -9,6 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = [
+    ((ROOT/'examples/beta09/aggregation.rusk').read_text(),b'',b'7 20 1.75\n1 3 1 0\n3 9 1 2\n8 Yes Yes\n-0 1\n'),
     ((ROOT/'examples/beta09/iteration_adapters.rusk').read_text(),b'',b'3 6 9\n9 10\n6 11 3 12 9 10 6 11 3 12\nabX! 5 4 3\n'),
     ((ROOT/'examples/beta09/ordering.rusk').read_text(),b'',b'Yes Yes Yes\nb a c\nnan -inf -0 0 inf nan\nYes Yes\n'),
     ((ROOT/'examples/beta09/numeric_operators.rusk').read_text(),b'',b'512 -4 4 1\n0.125 1267650600228229401496703205376\n8 2 -2 -2 12\n-9223372036854775808 0 -1 0\n-170141183460469231731687303715884105728 0 -1 -1 -1\n'),

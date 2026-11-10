@@ -42,6 +42,17 @@ fn aliases_preserve_nested_owner_identity_and_distinguish_return_escape_from_ret
     let mut identity = contract("read_fresh", &parameters, "Cursor", &types).unwrap();
     apply(&mut identity, "return=0", &parameters, "Cursor", &types).unwrap();
     assert!(!identity.returned.fresh);
+    let mut conditional = contract("read_fresh", &parameters, "Cursor", &types).unwrap();
+    apply(
+        &mut conditional,
+        "fresh;return=0",
+        &parameters,
+        "Cursor",
+        &types,
+    )
+    .unwrap();
+    assert!(conditional.returned.fresh);
+    assert!(conditional.returned.may_share(0));
     let mut value = contract("read_fresh", &parameters, "Int", &types).unwrap();
     apply(
         &mut value,

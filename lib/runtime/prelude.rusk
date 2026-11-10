@@ -14,3 +14,7 @@ extern symbol __runtime_iter_adapters__ {
     code_file: "iter_adapters.hpp",
     depends: "__runtime_lazy_iterators__",
 }
+extern symbol __runtime_aggregation__ {
+    code_file: "aggregation.hpp",
+    depends: "__runtime_iter_adapters__",
+}

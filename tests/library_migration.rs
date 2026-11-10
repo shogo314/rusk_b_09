@@ -3,6 +3,25 @@ mod library;
 mod support;
 use support::Case;
 
+fn renamed_algorithm_declarations() -> String {
+    [
+        "algorithms/search.rusk",
+        "algorithms/sequence.rusk",
+        "algorithms/sort.rusk",
+    ]
+    .into_iter()
+    .map(library::source)
+    .collect::<String>()
+    .replace("fn first_true<", "fn boundary_search<")
+    .replace("fn all<", "fn every_item<")
+    .replace("fn any<", "fn some_item<")
+    .replace("fn fold<", "fn reduce_items<")
+    .replace("fn scan<", "fn prefixes<")
+    .replace("fn to_vec<", "fn collect_items<")
+    .replace("fn sort_by_comp<", "fn order_items<")
+    .replace("fn sort_by_key<", "fn order_keys<")
+}
+
 #[test]
 fn vector_search_and_sort_use_element_operations_stability_and_sharing() {
     let case = Case::new(
@@ -348,15 +367,7 @@ let values:=VALUES;wt "before";sort_by_key(values,(x:Int)=>make_key(values,x));
 
 #[test]
 fn key_sort_snapshots_keys_once_and_accepts_user_comparison_operations() {
-    let declarations = library::source("algorithms/prelude.rusk")
-        .replace("fn first_true<", "fn boundary_search<")
-        .replace("fn all<", "fn every_item<")
-        .replace("fn any<", "fn some_item<")
-        .replace("fn fold<", "fn reduce_items<")
-        .replace("fn scan<", "fn prefixes<")
-        .replace("fn to_vec<", "fn collect_items<")
-        .replace("fn sort_by_comp<", "fn order_items<")
-        .replace("fn sort_by_key<", "fn order_keys<");
+    let declarations = renamed_algorithm_declarations();
     let case = Case::new(&format!(
         r#"{declarations}
 struct Row{{key:Int;id:Int;}}
@@ -384,15 +395,7 @@ let tuples:=[(1,2),(0,4),(1,0)];order_keys(tuples,(x:(Int,Int))=>x);wt tuples;
 
 #[test]
 fn binary_search_is_an_ordinary_declaration_and_works_under_an_unrelated_name() {
-    let declaration = library::source("algorithms/prelude.rusk")
-        .replace("fn first_true<", "fn boundary_search<")
-        .replace("fn all<", "fn every_item<")
-        .replace("fn any<", "fn some_item<")
-        .replace("fn to_vec<", "fn collect_items<")
-        .replace("fn fold<", "fn reduce_items<")
-        .replace("fn scan<", "fn prefixes<")
-        .replace("fn sort_by_comp<", "fn order_items<")
-        .replace("fn sort_by_key<", "fn order_keys<");
+    let declaration = renamed_algorithm_declarations();
     let case = Case::new(&format!(
         r#"{declaration}
 let threshold:=40;let predicate:=(x:Int)=>x*x>=threshold;
@@ -440,15 +443,7 @@ fn library_search_preserves_empty_interval_failures_and_prior_output() {
 
 #[test]
 fn predicates_use_user_defined_generic_iteration_without_container_name_dispatch() {
-    let declarations = library::source("algorithms/prelude.rusk")
-        .replace("fn first_true<", "fn boundary_search<")
-        .replace("fn all<", "fn every_item<")
-        .replace("fn any<", "fn some_item<")
-        .replace("fn to_vec<", "fn collect_items<")
-        .replace("fn fold<", "fn reduce_items<")
-        .replace("fn scan<", "fn prefixes<")
-        .replace("fn sort_by_comp<", "fn order_items<")
-        .replace("fn sort_by_key<", "fn order_keys<");
+    let declarations = renamed_algorithm_declarations();
     let case = Case::new(&format!(
         r#"{declarations}
 struct Feed<T>{{values:Vec<T>;}}
@@ -548,15 +543,7 @@ fn fold_return_preserves_empty_copies_shared_results_and_unit_cleanup() {
 
 #[test]
 fn comparator_sort_preserves_stability_and_is_available_as_a_user_declaration() {
-    let declarations = library::source("algorithms/prelude.rusk")
-        .replace("fn first_true<", "fn boundary_search<")
-        .replace("fn all<", "fn every_item<")
-        .replace("fn any<", "fn some_item<")
-        .replace("fn fold<", "fn reduce_items<")
-        .replace("fn scan<", "fn prefixes<")
-        .replace("fn to_vec<", "fn collect_items<")
-        .replace("fn sort_by_comp<", "fn order_items<")
-        .replace("fn sort_by_key<", "fn order_keys<");
+    let declarations = renamed_algorithm_declarations();
     let case = Case::new(&format!(
         r#"{declarations}
 struct Row{{key:Int;id:Int;}}
