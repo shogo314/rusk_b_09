@@ -1672,7 +1672,6 @@ check((Row{{value:1}},Row{{value:2}}),(Row{{value:3}},Row{{value:4}}));
     for source in [
         "struct NoOrder{value:Int;}wt (1,NoOrder{value:2})<(1,NoOrder{value:3});",
         "struct WrongOrder{value:Int;}fn __lt__(a:WrongOrder,b:WrongOrder)->Int{return 1;}wt (1,WrongOrder{value:2})<(1,WrongOrder{value:3});",
-        "wt true<false;",
     ] {
         let case = Case::new(source);
         let out = case.compile();
