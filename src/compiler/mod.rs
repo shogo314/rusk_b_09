@@ -407,6 +407,12 @@ impl Compiler {
                     .map_err(|_| s.error("integer literal out of range"))?;
                 Literal::Int(v)
             }
+            "Int128" => Literal::Int128(
+                text.strip_suffix("i128")
+                    .unwrap_or(text)
+                    .parse::<i128>()
+                    .map_err(|_| s.error("Int128 literal out of range"))?,
+            ),
             "Float" => {
                 let v = text
                     .parse::<f64>()
@@ -930,7 +936,7 @@ impl Compiler {
                     },
                 ))
             }
-            ExprKind::Literal(ty, text) => self.literal(ty, text, &e.span),
+            ExprKind::Literal(ty, text) => self.literal(literal_type(ty, expected), text, &e.span),
             ExprKind::Array(items) => {
                 let hint = expected.and_then(vector_element);
                 let mut values = vec![];
@@ -1079,15 +1085,26 @@ impl Compiler {
                 self.call(binary_name(op), vec![a, b], None, &e.span)
             }
             ExprKind::Unary(op, x) => {
-                // The minimum Int is spelled as a negated positive magnitude.
-                if op == "-"
+                let mut hint = None;
+                if matches!(op.as_str(), "+" | "-")
                     && let ExprKind::Literal(ty, text) = &x.kind
-                    && ty == "Int"
-                    && text == "9223372036854775808"
                 {
-                    return self.literal("Int", "-9223372036854775808", &e.span);
+                    let ty = literal_type(ty, expected);
+                    let magnitude = text.strip_suffix("i128").unwrap_or(text);
+                    let is_minimum = match ty {
+                        "Int" => magnitude == "9223372036854775808",
+                        "Int128" => {
+                            magnitude.trim_start_matches('0')
+                                == "170141183460469231731687303715884105728"
+                        }
+                        _ => false,
+                    };
+                    if op == "-" && is_minimum {
+                        return self.literal(ty, &format!("-{magnitude}"), &e.span);
+                    }
+                    hint = Some(ty);
                 }
-                let x = self.expr(x, None)?;
+                let x = self.expr(x, hint)?;
                 self.call(
                     match op.as_str() {
                         "-" => "__neg__",
@@ -1227,6 +1244,14 @@ impl Compiler {
         }
     }
 }
+fn literal_type<'a>(written: &'a str, expected: Option<&str>) -> &'a str {
+    if written == "Int" && expected == Some("Int128") {
+        "Int128"
+    } else {
+        written
+    }
+}
+
 fn binary_name(op: &str) -> &str {
     match op {
         "<?" => "__min__",

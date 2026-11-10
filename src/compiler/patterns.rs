@@ -5,6 +5,7 @@ mod lower;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Atom {
     Int(i64),
+    Int128(i128),
     Float(u64),
     Bool(bool),
     Char(u8),
@@ -14,6 +15,12 @@ impl Atom {
     fn parse(ty: &str, text: &str) -> Self {
         match ty {
             "Int" => Self::Int(text.parse().expect("validated integer")),
+            "Int128" => Self::Int128(
+                text.strip_suffix("i128")
+                    .unwrap_or(text)
+                    .parse()
+                    .expect("validated Int128"),
+            ),
             "Float" => {
                 let value = text.parse::<f64>().expect("validated Float");
                 Self::Float(if value == 0.0 { 0 } else { value.to_bits() })
@@ -43,6 +50,7 @@ impl Atom {
     fn text(&self) -> String {
         match self {
             Self::Int(n) => n.to_string(),
+            Self::Int128(n) => format!("{n}i128"),
             Self::Float(bits) => format!("{:?}", f64::from_bits(*bits)),
             Self::Bool(b) => b.to_string(),
             Self::Str(s) => serde_json::to_string(s).unwrap(),
@@ -127,6 +135,7 @@ impl Compiler {
         let mut result = TypedPattern::wild(ty, &pattern.span);
         result.kind = match &pattern.kind {
             PatternKind::Literal(wanted, text) => {
+                let wanted = literal_type(wanted, Some(ty));
                 self.same(wanted, ty, &pattern.span)?;
                 result.literal = Some(self.literal(wanted, text, &pattern.span)?);
                 Kind::Constructor(Constructor::Literal(Atom::parse(wanted, text)), vec![])

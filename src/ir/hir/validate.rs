@@ -63,6 +63,7 @@ impl Check<'_> {
                     let ty = match value {
                         Literal::Unit => "Unit",
                         Literal::Int(_) => "Int",
+                        Literal::Int128(_) => "Int128",
                         Literal::Float(_) => "Float",
                         Literal::Bool(_) => "Bool",
                         Literal::Char(_) => "Char",

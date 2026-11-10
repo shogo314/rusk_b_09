@@ -32,6 +32,7 @@ pub(crate) struct Call {
 pub(crate) enum Literal {
     Unit,
     Int(i64),
+    Int128(i128),
     Float(u64),
     Bool(bool),
     Char(u8),
@@ -157,6 +158,7 @@ impl Body {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Scalar {
     I64,
+    I128,
     F64,
     Bool,
     Char,
@@ -193,7 +195,7 @@ impl Type {
     pub fn scalar_value(&self) -> bool {
         matches!(
             self,
-            Self::Scalar(Scalar::I64 | Scalar::F64 | Scalar::Bool | Scalar::Char)
+            Self::Scalar(Scalar::I64 | Scalar::I128 | Scalar::F64 | Scalar::Bool | Scalar::Char)
         )
     }
     pub fn leaf(&self) -> bool {

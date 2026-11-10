@@ -20,7 +20,7 @@
 
 | 型・値の種類 | 主な操作 | 詳細 |
 |---|---|---|
-| Int・Bool | 演算、比較、真偽変換、明示変換、入出力 | [演算子](../reference/operators.md)・[入出力](input-output.md) |
+| Int・Int128・Bool | 演算、比較、真偽変換、明示変換、入出力 | [演算子](../reference/operators.md)・[入出力](input-output.md) |
 | Float | 四則演算、比較、丸め、明示変換、書式指定 | [Float](../reference/types.md#float)・[入出力](input-output.md#float-io) |
 | Char・Str | 添字、文字の更新、連結、探索、型変換 | [配列と文字列](sequences.md) |
 | Vec | 構築、追加・削除、共有取得、コピー、ソート・探索、走査 | [配列](sequences.md)・[関数を使う操作](algorithms.md) |
@@ -44,6 +44,7 @@
 | 名前 | 用途 |
 |---|---|
 | `Int` | 検査付き符号付き64ビット整数 |
+| `Int128` | 検査付き符号付き128ビット整数 |
 | `Float` | IEEE 754 binary64の浮動小数点値 |
 | `Bool` | `true` / `false`。標準出力は`Yes` / `No` |
 | `Char`・`Str` | ASCIIの文字・文字列 |

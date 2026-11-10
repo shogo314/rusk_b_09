@@ -97,3 +97,116 @@ fn invalid_float_input_conversions_and_precision_report_locations() {
         );
     }
 }
+
+#[test]
+fn int128_uses_checked_floor_arithmetic_and_shared_values() {
+    runs(
+        include_str!("../examples/beta09/int128.rusk"),
+        "",
+        "-170141183460469231731687303715884105728 170141183460469231731687303715884105727 170141183460469231731687303715884105726 170141183460469231731687303715884105727\n-3 2 -3 -2\n0 7 3 4\nYes -42 -3 Yes\n",
+    );
+}
+
+#[test]
+fn int128_literal_context_patterns_and_decimal_io() {
+    runs(
+        r#"
+fn identity(x:Int128)->Int128 {return x;}
+fn from_literal()->Int128 {return +123;}
+in a,b:Int128;
+let pair:(Int128,Int):=(3,4);
+let v:Vec<Int128>:=[1,-2,3];
+wt a,b,identity(18446744073709551616),from_literal(),pair,v;
+wt match a { -170141183460469231731687303715884105728 => 1, _ => 0, };
+wt match 1i128 { 1i128 => 2, _ => 0, };
+wt Int128(Float(a)) == a, Int128(true), !0i128;
+fn select(x:Int)->Int {return 1;}
+fn select(x:Int128)->Int {return 2;}
+wt select(1),select(1i128);
+"#,
+        "-170141183460469231731687303715884105728 +170141183460469231731687303715884105727",
+        "-170141183460469231731687303715884105728 170141183460469231731687303715884105727 18446744073709551616 123 3 4 1 -2 3\n1\n2\nYes 1 Yes\n1 2\n",
+    );
+}
+
+#[test]
+fn int128_invalid_literals_and_mixed_operands_are_diagnosed() {
+    for (source, expected) in [
+        (
+            "wt 170141183460469231731687303715884105728i128;",
+            "Int128 literal out of range",
+        ),
+        (
+            "let x:Int128:=-170141183460469231731687303715884105729;",
+            "Int128 literal out of range",
+        ),
+        ("wt 9223372036854775808;", "integer literal out of range"),
+        ("let x:=1;let y:Int128:=x;", "expected Int128"),
+        ("let x:=1;wt x+2i128;", "no matching"),
+    ] {
+        let output = Case::new(source).compile();
+        assert_eq!(output.status.code(), Some(1), "{source}");
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(
+            error.contains("main.rusk:1:") && error.contains(expected),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn int128_overflow_input_and_narrowing_report_locations() {
+    for (source, input, expected) in [
+        (
+            "wt 170141183460469231731687303715884105727i128+1i128;",
+            "",
+            "Int128 overflow",
+        ),
+        (
+            "wt -170141183460469231731687303715884105728i128-1i128;",
+            "",
+            "Int128 overflow",
+        ),
+        (
+            "wt 9223372036854775808i128*18446744073709551616i128;",
+            "",
+            "Int128 overflow",
+        ),
+        (
+            "wt -170141183460469231731687303715884105728i128 / -1i128;",
+            "",
+            "Int128 overflow",
+        ),
+        (
+            "let x: Int128 := -170141183460469231731687303715884105728;wt -x;",
+            "",
+            "Int128 overflow",
+        ),
+        ("wt 1i128 % 0i128;", "", "division by zero"),
+        ("wt Int(9223372036854775808i128);", "", "integer overflow"),
+        (
+            "wt Int128(Float(\"nan\"));",
+            "",
+            "Float cannot be converted to Int128",
+        ),
+        (
+            "wt Int128(Float(170141183460469231731687303715884105727i128));",
+            "",
+            "Float cannot be converted to Int128",
+        ),
+        (
+            "in x:Int128;",
+            "-170141183460469231731687303715884105729",
+            "Int128 out of range",
+        ),
+        ("in x:Int128;", "2e3", "invalid Int128"),
+    ] {
+        let output = Case::new(source).run(input);
+        assert_eq!(output.status.code(), Some(1), "{source}");
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(
+            error.contains("main.rusk:1:") && error.contains(expected),
+            "{error}"
+        );
+    }
+}

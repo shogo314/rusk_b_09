@@ -195,6 +195,13 @@ pub(crate) fn emit(
                             "(-INT64_C(9223372036854775807)-1)".into()
                         }
                         Literal::Int(n) => format!("INT64_C({n})"),
+                        Literal::Int128(n) => {
+                            let bits = *n as u128;
+                            let (high, low) = (bits >> 64, bits as u64);
+                            format!(
+                                "std::bit_cast<__int128>((static_cast<unsigned __int128>(UINT64_C(0x{high:016x})) << 64) | UINT64_C(0x{low:016x}))"
+                            )
+                        }
                         Literal::Float(bits) => {
                             format!("std::bit_cast<double>(UINT64_C(0x{bits:016x}))")
                         }

@@ -2,6 +2,7 @@ include "types.rusk";
 include "objects.rusk";
 include "integer.rusk";
 include "float.rusk";
+include "int128.rusk";
 include "../io/input.rusk";
 include "comparison.rusk";
 include "../iter/range.rusk";

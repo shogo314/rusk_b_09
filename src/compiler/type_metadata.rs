@@ -50,6 +50,7 @@ pub(super) fn parse_properties(
     }
     let scalar = match text.as_str() {
         "i64" => Some(Scalar::I64),
+        "i128" => Some(Scalar::I128),
         "f64" => Some(Scalar::F64),
         "bool" => Some(Scalar::Bool),
         "char" => Some(Scalar::Char),
@@ -144,6 +145,9 @@ impl Compiler {
                 Scalar::I64 => format!(
                     "std::is_integral_v<{native}> && std::is_signed_v<{native}> && sizeof({native}) == sizeof(std::int64_t) && {plain}"
                 ),
+                Scalar::I128 => {
+                    format!("std::is_same_v<{native},__int128> && sizeof({native}) == 16")
+                }
                 Scalar::F64 => format!(
                     "std::is_same_v<{native},double> && sizeof({native}) == sizeof(std::uint64_t) && std::numeric_limits<{native}>::is_iec559 && std::numeric_limits<{native}>::digits == 53 && std::numeric_limits<{native}>::max_exponent == 1024"
                 ),

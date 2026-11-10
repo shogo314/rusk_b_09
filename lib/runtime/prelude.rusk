@@ -1,6 +1,6 @@
 // Runtime resources and their dependencies are ordinary declarations.
 extern symbol __core__ {
-    code_files: "base.hpp;io.hpp;token_io.hpp;scalar.hpp;float.hpp",
+    code_files: "base.hpp;io.hpp;token_io.hpp;scalar.hpp;float.hpp;int128.hpp",
 }
 extern symbol __runtime_collections__ {
     code_files: "sequence_runtime.hpp;containers.hpp",

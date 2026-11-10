@@ -14,6 +14,7 @@
 |---|---|---|
 | 識別子 | `[a-zA-Z_][a-zA-Z0-9_]*` | `value`、`Point`、`_count`。日本語や数字から始まる名前は不可 |
 | 整数 | `[0-9]+` | `0`、`123`。十進数のみ。桁区切り・16進数は不可 |
+| 128ビット整数 | `[0-9]+i128` | `123i128`。期待型がInt128の文脈では`123`も可 |
 | 浮動小数点 | 小数点を含む十進数、または指数表記 | `1.25`、`2e-6`、`1.25E+3` |
 | 文字列 | 二重引用符で囲む | `"hello"`。内容はASCII、エスケープはJSON形式 |
 | 文字 | 単一引用符で1文字を囲む | `'a'`、`'\n'`。ASCIIの1文字 |
@@ -188,7 +189,8 @@ record_fields = "{" field_value { "," field_value } [ "," ] "}" ;
 field_value   = identifier ":" expression ;
 literal       = number_literal | string_literal | character_literal
               | "true" | "false" ;
-number_literal = integer_literal | float_literal ;
+number_literal = integer_literal | int128_literal | float_literal ;
+int128_literal = integer_literal "i128" ;
 float_literal  = integer_literal "." integer_literal [ exponent ]
                | integer_literal exponent ;
 exponent       = ( "e" | "E" ) [ "+" | "-" ] integer_literal ;

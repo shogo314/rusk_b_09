@@ -34,7 +34,7 @@
 
 externの引数契約を通常・ジェネリックexternと呼び出し側の効果解析に接続しました。`rusk search`と`rusk doc`は同じ宣言情報を使い、文書サイトはソースから標準APIリファレンスを生成します。 [externの引数契約](extern.md#extern-parameter-contracts)・[APIリファレンス](../library/api.md)
 
-数値型ではFloatを実装しました。64ビット浮動小数点のリテラル・四則演算・比較、明示変換、短い出力と固定小数点出力を提供します。 [Float](../reference/types.md#float)
+数値型ではFloatとInt128を実装しました。両方でリテラル・基本演算・比較・明示変換・入出力を提供します。 [Float](../reference/types.md#float)・[Int128](../reference/types.md#int128)
 
 ## フォーマッタの作業
 

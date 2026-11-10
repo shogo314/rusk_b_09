@@ -1195,6 +1195,7 @@ pub(super) fn number_literal<'a, 't>(
 ) -> (&'static str, &'a Token<'t>) {
     match literal {
         g::NumberLiteral::IntLiteral(x) => ("Int", &x.int_literal.int_literal),
+        g::NumberLiteral::Int128Literal(x) => ("Int128", &x.int128_literal.int128_literal),
         g::NumberLiteral::FloatLiteral(x) => ("Float", &x.float_literal.float_literal),
     }
 }
