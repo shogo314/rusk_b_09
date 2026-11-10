@@ -442,7 +442,8 @@ fn invalid_native_generics_report_rusk_source_locations() {
         "extern fn f<T>(x:T){code:\"@{}\",} f(1);",
         "extern fn f<T>(x:T,x:T){code:\"unused\",}",
         "extern fn f<T>(x:T){code:\"unused\",} fn f<U>(x:U){}",
-        "extern fn f<T>(readonly x:T){code:\"unused\",}",
+        "extern fn f<T>(readonly mutable x:T){code:\"unused\",}",
+        "extern fn f<T>(fixed x:T){code:\"unused\",}",
         "extern fn f<T>(x:T){effects:\"read_fresh\",code:\"unused\",}",
         "extern fn f<T>(x:T){code:\"unused\",} f::<Missing>(1);",
     ] {
@@ -457,17 +458,18 @@ fn invalid_native_generics_report_rusk_source_locations() {
 }
 
 #[test]
-fn documented_generic_extern_example_runs() {
+fn documented_extern_examples_run() {
     let document = include_str!("../docs/development/extern.md");
     let examples = document
         .split("```rusk\n")
         .skip(1)
         .map(|s| s.split_once("\n```").unwrap().0)
         .collect::<Vec<_>>();
-    assert_eq!(examples.len(), 3);
-    for (source, expected) in examples
-        .into_iter()
-        .zip(["3 hello\n", "1 2 9 2\n", "3 3 ok\n"])
+    assert_eq!(examples.len(), 4);
+    for (source, expected) in
+        examples
+            .into_iter()
+            .zip(["3 hello\n", "1 2 9 2\n", "3 3 ok\n", "3 7\n"])
     {
         let out = Case::new(source).run("");
         assert!(

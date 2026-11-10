@@ -235,14 +235,7 @@ impl Compiler {
                 }
             }
         }
-        for (argument, _) in arguments {
-            if argument.binding.is_some() || argument.access.is_some() || argument.escape.is_some()
-            {
-                return Err(argument
-                    .span
-                    .error("modifiers on extern parameters require a Rusk function body"));
-            }
-        }
+        effects::extern_parameter_contract(arguments, properties)?;
         let definition = generics::GenericFunction {
             name: name.clone(),
             parameters: parameters.to_vec(),

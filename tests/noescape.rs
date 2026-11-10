@@ -1,5 +1,82 @@
 mod support;
 use support::Case;
+
+#[test]
+fn extern_contracts_work_for_generic_calls_function_values_and_callbacks() {
+    let case = Case::new(include_str!("../examples/beta09/extern_contracts.rusk"));
+    for options in [&[][..], &["--no-opt"][..]] {
+        let output = case.run_with_options("", options);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, b"3 7 3 3\n1 2 2\n1 2 9\n");
+    }
+}
+
+#[test]
+fn extern_contracts_exclude_only_the_annotated_argument_routes() {
+    let externs = r#"
+extern fn second(readonly noescape x:Int, readonly y:Int)->Int {
+    cpp_name:"second",
+    code:"Obj<std::int64_t> second(Obj<std::int64_t>, Obj<std::int64_t> y, Loc) { return y; }",
+}
+extern fn increment(mutable noescape x:Int) {
+    cpp_name:"increment",
+    code:"void increment(Obj<std::int64_t> x, Loc) { ++*x; }",
+}
+extern fn permissive(escape x:Int) {
+    cpp_name:"permissive",
+    code:"void permissive(Obj<std::int64_t>, Loc) {}",
+}
+"#;
+    succeeds(
+        &format!(
+            "{externs}
+fn wrapper(noescape x:Int, y:Int)->Int {{ increment(x); return second(x,y); }}
+let x:=3;
+wt wrapper(x,5),x;"
+        ),
+        "5 4\n",
+    );
+    for body in [
+        "return second(x,x);",
+        "let alias:=x;return second(x,alias);",
+        "return second(0,x);",
+        "permissive(x);return 0;",
+    ] {
+        rejects(
+            &format!("{externs} fn bad(noescape x:Int)->Int {{ {body} }} bad(1);"),
+            "cannot prove noescape",
+        );
+    }
+}
+
+#[test]
+fn recursive_wrappers_converge_when_heap_changes_and_extern_returns_mix() {
+    let case = Case::new(
+        r#"
+extern fn opaque() {cpp_name:"opaque",code:"void opaque(Loc) {}",}
+extern fn empty(readonly noescape values:Vec<Int>)->Vec<Int> {
+    cpp_name:"native_empty",
+    code:"Obj<RuskVec<std::int64_t>> native_empty(Obj<RuskVec<std::int64_t>>, Loc) { return make_obj<RuskVec<std::int64_t>>({}); }",
+}
+fn first(values:Vec<Int>, again:Bool)->Vec<Int> {
+    opaque();
+    return second(values, again);
+}
+fn second(values:Vec<Int>, again:Bool)->Vec<Int> {
+    if again {return first(values, false);}
+    return empty(values);
+}
+wt first([1], true).len();
+"#,
+    );
+    let output = case.run("");
+    assert_eq!(output.stdout, b"0\n");
+}
+
 fn succeeds(source: &str, expected: &str) {
     let output = Case::new(source).run("");
     assert!(
@@ -163,12 +240,12 @@ fn parameter_only_syntax_conflicts_and_overloads_are_rejected() {
             "conflicting escape modifiers",
         ),
         (
-            r#"extern fn f(noescape x:Int){cpp_name:"f",code:"ignored",}"#,
-            "escape modifiers on extern parameters require a Rusk function body",
+            r#"extern fn f(noescape noescape x:Int){cpp_name:"f",code:"ignored",}"#,
+            "duplicate escape modifier",
         ),
         (
-            r#"extern fn f(escape x:Int){cpp_name:"f",code:"ignored",}"#,
-            "escape modifiers on extern parameters require a Rusk function body",
+            r#"extern fn f(noescape escape x:Int){cpp_name:"f",code:"ignored",}"#,
+            "conflicting escape modifiers",
         ),
         (
             "fn f(noescape x:Int){}fn f(escape x:Int){}",

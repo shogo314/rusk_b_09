@@ -1,5 +1,44 @@
 use super::*;
 
+pub(super) fn extern_parameter_contract(
+    arguments: &[(DeclaredName, Name)],
+    properties: &BTreeMap<String, String>,
+) -> Result<Option<crate::analysis::effects::Summary>, String> {
+    use crate::frontend::ast::{AccessMode, EscapeMode};
+
+    let mut guarantees = Vec::with_capacity(arguments.len());
+    for (argument, _) in arguments {
+        if let Some(annotation) = &argument.binding {
+            return Err(annotation
+                .span
+                .error("binding modifiers on extern parameters require a Rusk function body"));
+        }
+        if (argument.access.is_some() || argument.escape.is_some())
+            && ["effects", "aliases", "derive"]
+                .iter()
+                .any(|key| properties.contains_key(*key))
+        {
+            return Err(argument.span.error(
+                "extern parameter modifiers cannot be combined with native effects, aliases or derivation",
+            ));
+        }
+        guarantees.push((
+            argument
+                .access
+                .as_ref()
+                .is_some_and(|a| a.mode == AccessMode::Readonly),
+            argument
+                .escape
+                .as_ref()
+                .is_some_and(|a| a.mode == EscapeMode::Noescape),
+        ));
+    }
+    Ok(guarantees
+        .iter()
+        .any(|&(readonly, noescape)| readonly || noescape)
+        .then(|| crate::analysis::effects::Summary::external(&guarantees)))
+}
+
 impl Compiler {
     pub(super) fn record_native_dependency(
         &mut self,

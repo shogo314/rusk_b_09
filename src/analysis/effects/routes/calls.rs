@@ -49,10 +49,17 @@ fn trail_cost(trail: &Trail) -> usize {
 }
 fn state_cost(state: &State, routes: &Routes) -> usize {
     1 + state
-        .values
+        .parameter_roots
         .values()
-        .map(|v| 1 + v.aliases.iter().map(alias_cost).sum::<usize>())
+        .map(|roots| 1 + roots.nested.len())
         .sum::<usize>()
+        + state
+            .values
+            .values()
+            .map(|v| {
+                1 + v.excluded_parameters.len() + v.aliases.iter().map(alias_cost).sum::<usize>()
+            })
+            .sum::<usize>()
         + routes
             .values
             .values()
@@ -105,12 +112,7 @@ fn trace(
     }
     budget.spend(initial_cost)?;
     let parameter = goal.parameter();
-    let initial = State {
-        values: (0..function.params.len())
-            .map(|i| (ValueId::Parameter(i), ReturnOrigins::parameter(i)))
-            .collect(),
-        heap_unknown: false,
-    };
+    let initial = State::initial(function.params.len());
     let mut entries = vec![None; body.blocks.len()];
     entries[0] = Some((initial, Routes::new(body, parameter)));
     let mut pending = VecDeque::from([0]);
@@ -149,6 +151,7 @@ fn trace(
                 &mut step,
                 context.callees,
                 &context.private[function.id],
+                &context.program.types,
             );
             routes.operation(op, &before, &state, context.callees, context.program);
             if matches!(goal, Goal::Retained(_))
@@ -160,8 +163,7 @@ fn trace(
                             call.args.iter().enumerate().find(|(i, value)| {
                                 let origin = before.get(value);
                                 context.callees[call.function].parameters[*i].retained != Effect::No
-                                    && (origin.unknown
-                                        || origin.aliases.iter().any(|a| a.parameter == parameter))
+                                    && origin.may_share(parameter)
                             })?;
                         let mut trail = routes
                             .trail(value, &before.get(value), parameter)

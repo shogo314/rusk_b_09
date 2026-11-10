@@ -89,13 +89,14 @@ pub(crate) struct ReturnAlias {
     pub parameter: usize,
     pub parameter_path: Vec<Projection>,
 }
-/// A may-set, including references contained in an aggregate. Unknown is top;
-/// fresh is a possible independent allocation, not a proof of uniqueness.
+/// A may-set, including references contained in an aggregate. Unknown can
+/// exclude specific parameters. Fresh denotes a possible independent allocation.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ReturnOrigins {
     pub aliases: BTreeSet<ReturnAlias>,
     pub fresh: bool,
     pub unknown: bool,
+    pub excluded_parameters: BTreeSet<usize>,
 }
 const MAX_ALIASES: usize = 64;
 const MAX_PATH: usize = 16;
@@ -124,8 +125,10 @@ impl ReturnOrigins {
         }
     }
     fn bounded(mut self) -> Self {
-        if self.unknown
-            || self.aliases.len() > MAX_ALIASES
+        if self.unknown {
+            self.aliases.clear();
+            self.fresh = false;
+        } else if self.aliases.len() > MAX_ALIASES
             || self
                 .aliases
                 .iter()
@@ -135,15 +138,34 @@ impl ReturnOrigins {
         }
         self
     }
+    pub(crate) fn may_share(&self, parameter: usize) -> bool {
+        if self.unknown {
+            !self.excluded_parameters.contains(&parameter)
+        } else {
+            self.aliases
+                .iter()
+                .any(|alias| alias.parameter == parameter)
+        }
+    }
     fn join(&mut self, other: &Self) {
-        self.unknown |= other.unknown;
+        if other.unknown && !self.unknown {
+            let mut joined = other.clone();
+            joined.join(self);
+            *self = joined;
+            return;
+        }
+        if self.unknown {
+            self.excluded_parameters
+                .retain(|parameter| !other.may_share(*parameter));
+            return;
+        }
         self.fresh |= other.fresh;
         self.aliases.extend(other.aliases.iter().cloned());
         *self = std::mem::take(self).bounded();
     }
     fn project(&self, projection: Projection) -> Self {
         if self.unknown {
-            return Self::unknown();
+            return self.clone();
         }
         let mut result = Self {
             fresh: self.fresh,
@@ -174,9 +196,25 @@ impl ReturnOrigins {
             .collect();
         result.bounded()
     }
-    fn substitute(&self, args: &[Self]) -> Self {
+    fn substitute(&self, args: &[Self], mut excluded_parameters: BTreeSet<usize>) -> Self {
         if self.unknown {
-            return Self::unknown();
+            for (index, actual) in args.iter().enumerate() {
+                if !self.may_share(index) {
+                    continue;
+                }
+                if actual.unknown {
+                    excluded_parameters
+                        .retain(|parameter| actual.excluded_parameters.contains(parameter));
+                } else {
+                    for alias in &actual.aliases {
+                        excluded_parameters.remove(&alias.parameter);
+                    }
+                }
+            }
+            return Self {
+                excluded_parameters,
+                ..Self::unknown()
+            };
         }
         let mut result = Self {
             fresh: self.fresh,
@@ -201,6 +239,12 @@ pub(crate) enum SummarySource {
     Inferred,
     Opaque,
     NativeContract,
+    ExternContract,
+}
+impl SummarySource {
+    fn has_contract(&self) -> bool {
+        matches!(self, Self::NativeContract | Self::ExternContract)
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Summary {
@@ -236,6 +280,22 @@ impl Summary {
             ..Self::inferred(parameters)
         }
     }
+    pub fn external(guarantees: &[(bool, bool)]) -> Self {
+        let mut summary = Self::unknown(guarantees.len(), SummarySource::ExternContract);
+        for (index, &(readonly, noescape)) in guarantees.iter().enumerate() {
+            let parameter = &mut summary.parameters[index];
+            if readonly {
+                parameter.write = Effect::No;
+                parameter.structural = Effect::No;
+            }
+            if noescape {
+                parameter.escape = Effect::No;
+                parameter.retained = Effect::No;
+                summary.returned.excluded_parameters.insert(index);
+            }
+        }
+        summary
+    }
     fn inferred(parameters: usize) -> Self {
         Self {
             source: SummarySource::Inferred,
@@ -263,15 +323,21 @@ impl Summary {
             .aliases
             .iter()
             .any(|a| a.parameter >= parameters)
+            || self
+                .returned
+                .excluded_parameters
+                .iter()
+                .any(|&parameter| !self.returned.unknown || parameter >= parameters)
         {
             return Err("invalid effect summary return parameter".into());
         }
         if self
-            .returned
-            .aliases
+            .parameters
             .iter()
-            .any(|a| self.parameters[a.parameter].escape == Effect::No)
-            || (self.returned.unknown && self.parameters.iter().any(|p| p.escape == Effect::No))
+            .enumerate()
+            .any(|(index, parameter)| {
+                parameter.escape == Effect::No && self.returned.may_share(index)
+            })
         {
             return Err("effect summary loses return escape".into());
         }
@@ -294,7 +360,7 @@ impl Summary {
         if !has_body && self.source == SummarySource::Inferred {
             return Err("cannot infer effects for an opaque body".into());
         }
-        if has_body && self.source == SummarySource::NativeContract {
+        if has_body && self.source.has_contract() {
             return Err("native contract requires an opaque body".into());
         }
         for alias in &self.returned.aliases {
@@ -322,12 +388,36 @@ impl Summary {
                 escape: uncertain(effect.escape),
                 retained: uncertain(effect.retained),
             };
-            for parameter in &mut self.parameters {
-                parameter.join(&effect);
+            for (index, parameter) in self.parameters.iter_mut().enumerate() {
+                if value.may_share(index) {
+                    parameter.join(&effect);
+                }
             }
         } else {
             for origin in &value.aliases {
                 self.parameters[origin.parameter].join(effect);
+            }
+        }
+    }
+    fn join(&mut self, other: &Self) {
+        for (parameter, other) in self.parameters.iter_mut().zip(&other.parameters) {
+            parameter.join(other);
+        }
+        self.join_returned(&other.returned);
+        self.io.join(other.io);
+        self.external_write.join(other.external_write);
+        self.may_fail.join(other.may_fail);
+        self.may_diverge.join(other.may_diverge);
+    }
+    fn join_returned(&mut self, other: &ReturnOrigins) {
+        self.returned.join(other);
+        // The union of precise paths may widen beyond those seen on any one
+        // return. Keep the escape summary conservative for the widened paths.
+        if self.returned.unknown {
+            for (index, parameter) in self.parameters.iter_mut().enumerate() {
+                if parameter.escape == Effect::No && self.returned.may_share(index) {
+                    parameter.escape = Effect::Unknown;
+                }
             }
         }
     }
@@ -365,13 +455,56 @@ pub(crate) fn project_type(
     Ok(ty)
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct ParameterRoots {
+    whole: Option<usize>,
+    nested: BTreeSet<usize>,
+}
+impl ParameterRoots {
+    fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.whole.into_iter().chain(self.nested.iter().copied())
+    }
+    fn intersect(&mut self, other: &Self) {
+        if self.whole != other.whole {
+            self.whole = None;
+        }
+        self.nested.retain(|index| other.nested.contains(index));
+    }
+    fn is_empty(&self) -> bool {
+        self.whole.is_none() && self.nested.is_empty()
+    }
+}
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct State {
     values: BTreeMap<ValueId, ReturnOrigins>,
+    /// Whole incoming objects known to be held by a binding, directly or
+    /// through aggregate members. This proof is independent of call summaries.
+    parameter_roots: BTreeMap<ValueId, ParameterRoots>,
     /// Member stores and opaque calls currently invalidate heap projections.
     /// A later field-sensitive heap analysis can replace this conservative top.
     heap_unknown: bool,
+    has_heap_facts: bool,
 }
 impl State {
+    fn initial(parameters: usize) -> Self {
+        Self {
+            values: (0..parameters)
+                .map(|i| (ValueId::Parameter(i), ReturnOrigins::parameter(i)))
+                .collect(),
+            parameter_roots: (0..parameters)
+                .map(|i| {
+                    (
+                        ValueId::Parameter(i),
+                        ParameterRoots {
+                            whole: Some(i),
+                            ..ParameterRoots::default()
+                        },
+                    )
+                })
+                .collect(),
+            heap_unknown: false,
+            has_heap_facts: false,
+        }
+    }
     fn get(&self, value: &Value) -> ReturnOrigins {
         self.values
             .get(&value.id)
@@ -383,17 +516,66 @@ impl State {
         value: &Value,
         types: &BTreeMap<String, crate::ir::hir::Type>,
     ) -> ReturnOrigins {
-        if self.heap_unknown && !types.get(&value.ty).is_some_and(crate::ir::hir::Type::leaf) {
+        let origins = self.get(value);
+        if self.heap_unknown
+            && !origins.unknown
+            && !types.get(&value.ty).is_some_and(crate::ir::hir::Type::leaf)
+        {
             ReturnOrigins::unknown()
         } else {
-            self.get(value)
+            origins
         }
+    }
+    fn bind(&mut self, target: &ValueId, source: Option<&Value>, origins: ReturnOrigins) {
+        let roots = source.and_then(|source| self.parameter_roots.get(&source.id).cloned());
+        if let Some(roots) = roots {
+            self.parameter_roots.insert(target.clone(), roots);
+        } else {
+            self.parameter_roots.remove(target);
+        }
+        self.has_heap_facts |= !origins.excluded_parameters.is_empty();
+        self.values.insert(target.clone(), origins);
+    }
+    fn invalidate_heap(&mut self) {
+        self.heap_unknown = true;
+        if !std::mem::take(&mut self.has_heap_facts) {
+            return;
+        }
+        for origins in self.values.values_mut() {
+            origins.excluded_parameters.clear();
+        }
+        self.parameter_roots.retain(|_, roots| {
+            roots.nested.clear();
+            !roots.is_empty()
+        });
     }
     fn join(&mut self, other: &Self) -> bool {
         let old = self.clone();
         self.heap_unknown |= other.heap_unknown;
+        self.has_heap_facts |= other.has_heap_facts;
+        self.parameter_roots.retain(|id, roots| {
+            if let Some(other) = other.parameter_roots.get(id) {
+                roots.intersect(other);
+                !roots.is_empty()
+            } else {
+                false
+            }
+        });
         for (id, value) in &other.values {
-            self.values.entry(id.clone()).or_default().join(value);
+            let Some(entry) = self.values.get_mut(id) else {
+                self.values.insert(id.clone(), value.clone());
+                continue;
+            };
+            if self.heap_unknown
+                && ((!entry.excluded_parameters.is_empty() && !value.unknown)
+                    || (!value.excluded_parameters.is_empty() && !entry.unknown))
+            {
+                // A precise origin from the other path can hide additional
+                // references after heap mutation.
+                *entry = ReturnOrigins::unknown();
+            } else {
+                entry.join(value);
+            }
         }
         *self != old
     }
@@ -422,16 +604,15 @@ fn operation(
     summary: &mut Summary,
     callees: &[Summary],
     private: &BTreeSet<ValueId>,
+    types: &BTreeMap<String, crate::ir::hir::Type>,
 ) {
     match op {
         Operation::Literal { result, .. } => {
-            state
-                .values
-                .insert(result.id.clone(), ReturnOrigins::fresh());
+            state.bind(&result.id, None, ReturnOrigins::fresh());
         }
         Operation::Declare { result, initial } => {
             let value = initial.as_ref().map(|v| state.get(v)).unwrap_or_default();
-            state.values.insert(result.id.clone(), value);
+            state.bind(&result.id, initial.as_ref(), value);
         }
         Operation::Object { result, expression } => {
             let value = match expression {
@@ -443,7 +624,7 @@ fn operation(
                 Rvalue::Field { owner, index } => {
                     let owner = state.get(owner);
                     read(summary, &owner);
-                    if state.heap_unknown {
+                    if state.heap_unknown && !owner.unknown {
                         ReturnOrigins::unknown()
                     } else {
                         owner.project(Projection::Field(*index))
@@ -456,7 +637,7 @@ fn operation(
                 } => {
                     let owner = state.get(owner);
                     read(summary, &owner);
-                    if state.heap_unknown {
+                    if state.heap_unknown && !owner.unknown {
                         ReturnOrigins::unknown()
                     } else {
                         owner.project(Projection::VariantField {
@@ -471,6 +652,9 @@ fn operation(
                 }
                 Rvalue::Aggregate(fields) | Rvalue::Variant { fields, .. } => {
                     let mut value = ReturnOrigins::fresh();
+                    let scoped = fields
+                        .iter()
+                        .any(|field| !state.get(field).excluded_parameters.is_empty());
                     for (index, field) in fields.iter().enumerate() {
                         let projection = match expression {
                             Rvalue::Variant { index: variant, .. } => Projection::VariantField {
@@ -479,18 +663,44 @@ fn operation(
                             },
                             _ => Projection::Field(index),
                         };
-                        value.join(&state.get(field).contain(projection));
+                        let field = if scoped {
+                            state.returned(field, types)
+                        } else {
+                            state.get(field)
+                        };
+                        value.join(&field.contain(projection));
                     }
                     value
                 }
             };
-            state.values.insert(result.id.clone(), value);
+            let source = match expression {
+                Rvalue::Share(source) => Some(source),
+                _ => None,
+            };
+            state.bind(&result.id, source, value);
+            if let Rvalue::Aggregate(fields) | Rvalue::Variant { fields, .. } = expression {
+                let nested: BTreeSet<_> = fields
+                    .iter()
+                    .filter_map(|field| state.parameter_roots.get(&field.id))
+                    .flat_map(ParameterRoots::iter)
+                    .collect();
+                if !nested.is_empty() {
+                    state.has_heap_facts = true;
+                    state.parameter_roots.insert(
+                        result.id.clone(),
+                        ParameterRoots {
+                            whole: None,
+                            nested,
+                        },
+                    );
+                }
+            }
         }
         Operation::Rebind { target, value, .. } => {
-            let value = state.get(value);
+            let origins = state.get(value);
             match target {
                 Place::Local(id) => {
-                    state.values.insert(id.clone(), value);
+                    state.bind(id, Some(value), origins);
                 }
                 Place::Field { owner, .. } => {
                     summary.affect(
@@ -506,7 +716,7 @@ fn operation(
                     // before an eventual publication of their destination.
                     if !private.contains(&owner.id) {
                         summary.affect(
-                            &value,
+                            &origins,
                             &ParameterEffects {
                                 escape: Effect::May,
                                 retained: Effect::May,
@@ -514,7 +724,7 @@ fn operation(
                             },
                         );
                     }
-                    state.heap_unknown = true;
+                    state.invalidate_heap();
                 }
             }
         }
@@ -530,23 +740,44 @@ fn operation(
         }
         Operation::Call(call) => {
             let callee = &callees[call.function];
-            let args: Vec<_> = call.args.iter().map(|v| state.get(v)).collect();
+            let excluded_parameters = callee
+                .returned
+                .excluded_parameters
+                .iter()
+                .filter_map(|&index| state.parameter_roots.get(&call.args[index].id))
+                .flat_map(ParameterRoots::iter)
+                .collect();
+            let mut args: Vec<_> = call.args.iter().map(|v| state.get(v)).collect();
             for (actual, effect) in args.iter().zip(&callee.parameters) {
                 let mut passed = effect.clone();
                 // Returning a reference only escapes the callee. The caller's
                 // uses of that result determine whether it escapes again.
                 passed.escape = effect.retained;
                 summary.affect(actual, &passed);
-                if effect.write != Effect::No || effect.structural != Effect::No {
-                    state.heap_unknown = true;
-                }
             }
             summary.io.join(callee.io);
             summary.external_write.join(callee.external_write);
-            state.heap_unknown |= callee.external_write != Effect::No;
+            if callee.external_write != Effect::No
+                || callee
+                    .parameters
+                    .iter()
+                    .any(|p| p.write != Effect::No || p.structural != Effect::No)
+            {
+                state.invalidate_heap();
+                for arg in &mut args {
+                    arg.excluded_parameters.clear();
+                }
+            }
             summary.may_fail.join(callee.may_fail);
             summary.may_diverge.join(callee.may_diverge);
-            let returned = if state.heap_unknown
+            let returned = if !callee.returned.excluded_parameters.is_empty() {
+                let args: Vec<_> = call
+                    .args
+                    .iter()
+                    .map(|arg| state.returned(arg, types))
+                    .collect();
+                callee.returned.substitute(&args, excluded_parameters)
+            } else if state.heap_unknown
                 && callee
                     .returned
                     .aliases
@@ -555,9 +786,9 @@ fn operation(
             {
                 ReturnOrigins::unknown()
             } else {
-                callee.returned.substitute(&args)
+                callee.returned.substitute(&args, BTreeSet::new())
             };
-            state.values.insert(call.result.id.clone(), returned);
+            state.bind(&call.result.id, None, returned);
         }
         Operation::Release(_)
         | Operation::DescribeBinding { .. }
@@ -573,19 +804,14 @@ fn analyze_function(
     types: &BTreeMap<String, crate::ir::hir::Type>,
 ) -> Summary {
     let Some(body) = &function.body else {
-        return if function.effects.source == SummarySource::NativeContract {
+        return if function.effects.source.has_contract() {
             function.effects.clone()
         } else {
             Summary::unknown(function.params.len(), SummarySource::Opaque)
         };
     };
     let mut summary = Summary::inferred(function.params.len());
-    let initial = State {
-        values: (0..function.params.len())
-            .map(|i| (ValueId::Parameter(i), ReturnOrigins::parameter(i)))
-            .collect(),
-        heap_unknown: false,
-    };
+    let initial = State::initial(function.params.len());
     let mut entries = vec![None; body.blocks.len()];
     entries[0] = Some(initial);
     let mut pending = VecDeque::from([0]);
@@ -593,7 +819,7 @@ fn analyze_function(
         let mut state = entries[index].as_ref().unwrap().clone();
         let block = &body.blocks[index];
         for op in &block.instructions {
-            operation(op, &mut state, &mut summary, callees, private);
+            operation(op, &mut state, &mut summary, callees, private, types);
         }
         let mut successors = vec![];
         match &block.terminator {
@@ -610,7 +836,7 @@ fn analyze_function(
                 // Mutated aggregates may retain sources beyond their initial fields.
                 let origins = state.returned(value, types);
                 escapes(&mut summary, &origins);
-                summary.returned.join(&origins);
+                summary.join_returned(&origins);
             }
             Terminator::Return { value: None, .. } | Terminator::Unreachable => {}
         }
@@ -698,12 +924,7 @@ fn first_escape(
         callees,
         private,
     };
-    let initial = State {
-        values: (0..function.params.len())
-            .map(|i| (ValueId::Parameter(i), ReturnOrigins::parameter(i)))
-            .collect(),
-        heap_unknown: false,
-    };
+    let initial = State::initial(function.params.len());
     let mut entries = vec![None; body.blocks.len()];
     entries[0] = Some((initial, routes::Routes::new(body, parameter)));
     let mut pending = VecDeque::from([0]);
@@ -713,7 +934,14 @@ fn first_escape(
         for op in &block.instructions {
             let before = state.clone();
             let mut step = Summary::inferred(function.params.len());
-            operation(op, &mut state, &mut step, callees, &private[function.id]);
+            operation(
+                op,
+                &mut state,
+                &mut step,
+                callees,
+                &private[function.id],
+                &program.types,
+            );
             routes.operation(op, &before, &state, callees, program);
             if step.parameters[parameter].escape != Effect::No {
                 let (span, effect, reason, route) = match op {
@@ -722,8 +950,7 @@ fn first_escape(
                         let actual = call.args.iter().enumerate().find(|(i, arg)| {
                             let origin = before.get(arg);
                             callee.effects.parameters[*i].retained != Effect::No
-                                && (origin.unknown
-                                    || origin.aliases.iter().any(|a| a.parameter == parameter))
+                                && origin.may_share(parameter)
                         });
                         let (argument, route) = actual
                             .map(|(i, arg)| {
@@ -922,7 +1149,7 @@ fn solve(program: &lir::Program, private: &[BTreeSet<ValueId>]) -> Vec<Summary> 
             if f.body.is_some() {
                 Summary::inferred(f.params.len())
             } else {
-                if f.effects.source == SummarySource::NativeContract {
+                if f.effects.source.has_contract() {
                     f.effects.clone()
                 } else {
                     Summary::unknown(f.params.len(), SummarySource::Opaque)
@@ -974,6 +1201,9 @@ fn solve(program: &lir::Program, private: &[BTreeSet<ValueId>]) -> Vec<Summary> 
             .collect();
         for (i, recursive) in recursive.iter().enumerate() {
             if *recursive {
+                // A new scoped return may refine a previous heap widening.
+                // Keep the recursive approximation ascending through cycles.
+                next[i].join(&summaries[i]);
                 next[i].may_diverge.join(Effect::May);
             }
         }

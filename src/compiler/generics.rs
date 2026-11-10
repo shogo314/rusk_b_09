@@ -740,8 +740,8 @@ impl Compiler {
         } else {
             String::new()
         };
-        if let Some(properties) = &definition.foreign
-            && let Some(effects) = self
+        if let Some(properties) = &definition.foreign {
+            let native = self
                 .declared_native_effects(
                     &definition.name,
                     &self.functions[index].params,
@@ -754,11 +754,11 @@ impl Compiler {
                         "{error}\nwhile instantiating '{name}' at {}:{}:{}",
                         span.file, span.line, span.column
                     )
-                })?
-        {
-            self.native_info_mut(index).contract = Some(effects);
-        }
-        if let Some(properties) = &definition.foreign {
+                })?;
+            let author = effects::extern_parameter_contract(&definition.arguments, properties)?;
+            if let Some(contract) = native.or(author) {
+                self.native_info_mut(index).contract = Some(contract);
+            }
             let mut properties = properties.clone();
             for key in ["lower", "lower_owned", "lower_borrowed", "lower_rooted"] {
                 if let Some(expression) = properties.get(key).cloned() {

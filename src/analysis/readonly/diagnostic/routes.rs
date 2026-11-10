@@ -323,8 +323,10 @@ impl Routes {
                     paths.truncate();
                 }
                 if callee.effects.returned.unknown {
-                    for actual in &arguments {
-                        if let Some(trail) = actual.best() {
+                    for (index, actual) in arguments.iter().enumerate() {
+                        if callee.effects.returned.may_share(index)
+                            && let Some(trail) = actual.best()
+                        {
                             paths.insert(vec![], trail);
                         }
                     }

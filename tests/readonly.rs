@@ -1,6 +1,27 @@
 mod support;
 use support::Case;
 
+#[test]
+fn extern_readonly_preserves_possible_shared_results_and_checks_other_arguments() {
+    let externs = r#"
+extern fn alias(readonly x:Int)->Int {
+    cpp_name:"native_alias",
+    code:"Obj<std::int64_t> native_alias(Obj<std::int64_t> x, Loc) { return x; }",
+}
+extern fn replace(readonly noescape x:Int, mutable y:Int) {
+    cpp_name:"native_replace",
+    code:"void native_replace(Obj<std::int64_t> x, Obj<std::int64_t> y, Loc) { *y = *x; }",
+}
+"#;
+    for code in [
+        "readonly let x:=1;let result:=alias(x);result=2;",
+        "readonly let x:=1;replace(0,x);",
+        "readonly let x:=1;replace(x,x);",
+    ] {
+        rejects(&format!("{externs}{code}"), "cannot prove readonly");
+    }
+}
+
 fn succeeds(source: &str, expected: &str) {
     let case = Case::new(source);
     let run = case.run("");
@@ -156,8 +177,8 @@ fn conflicts_external_contracts_and_overloads_are_checked() {
             "conflicting access modifiers",
         ),
         (
-            r#"extern fn f(readonly x:Int){cpp_name:"f",code:"ignored",}"#,
-            "access modifiers on extern parameters require a Rusk function body",
+            r#"extern fn f(readonly mutable x:Int){cpp_name:"f",code:"ignored",}"#,
+            "conflicting access modifiers",
         ),
         (
             "fn f(readonly x:Int){}fn f(mutable x:Int){}",

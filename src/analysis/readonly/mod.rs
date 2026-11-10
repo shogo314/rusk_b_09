@@ -360,9 +360,11 @@ fn operation(
             value.access.join(&restriction.returned);
             if callee.effects.returned.unknown {
                 value.unknown = true;
-                for (actual, reference) in args.iter().zip(&references) {
-                    value.access.join(&actual.collapse());
-                    state.objects.expose(reference);
+                for (index, (actual, reference)) in args.iter().zip(&references).enumerate() {
+                    if callee.effects.returned.may_share(index) {
+                        value.access.join(&actual.collapse());
+                        state.objects.expose(reference);
+                    }
                 }
                 value.access.join(&state.heap);
             } else {

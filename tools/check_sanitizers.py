@@ -9,6 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = [
+    ((ROOT/'examples/beta09/extern_contracts.rusk').read_text(),b'',b'3 7 3 3\n1 2 2\n1 2 9\n'),
     ((ROOT/'examples/beta08/fold_return_abi.rusk').read_text(),b'',b'4 7 0\n10 0\n123\n123\n'),
     ((ROOT/'examples/beta08/lazy_assignment_retention.rusk').read_text(),b'',b'1 2 3 1 2 3\n1 3 1 3\n0 3 6 0 3 6\n'),
     ((ROOT/'examples/beta08/implicit_calls.rusk').read_text(),b'',b'8\n9 10\nYes\n1 2 3\n20 30\n11 12\n13\n14\n'),

@@ -180,21 +180,6 @@ impl Compiler {
                         };
                         let mut names = BTreeSet::new();
                         for (param, ty) in params {
-                            if matches!(s, Stmt::Function(..))
-                                && let Some(annotation) = &param.binding
-                            {
-                                return Err(annotation.span.error("binding modifiers on extern parameters require a Rusk function body"));
-                            }
-                            if matches!(s, Stmt::Function(..))
-                                && let Some(annotation) = &param.access
-                            {
-                                return Err(annotation.span.error("access modifiers on extern parameters require a Rusk function body"));
-                            }
-                            if matches!(s, Stmt::Function(..))
-                                && let Some(annotation) = &param.escape
-                            {
-                                return Err(annotation.span.error("escape modifiers on extern parameters require a Rusk function body"));
-                            }
                             self.check_type(ty)?;
                             if !names.insert(&param.text) {
                                 return Err(param.span.error("duplicate parameter"));
@@ -218,18 +203,19 @@ impl Compiler {
                                 old.name.span.file, old.name.span.line, old.name.span.column
                             )));
                         }
-                        if let Stmt::Function(_, _, _, properties) = s
-                            && let Some(effects) = self.declared_native_effects(
+                        if let Stmt::Function(_, arguments, _, properties) = s {
+                            let native = self.declared_native_effects(
                                 n,
                                 &params,
                                 &result,
                                 properties,
                                 source.origin,
-                            )?
-                        {
-                            self.native_info_mut(self.functions.len()).contract = Some(effects);
-                        }
-                        if let Stmt::Function(_, _, _, properties) = s {
+                            )?;
+                            let author = effects::extern_parameter_contract(arguments, properties)?;
+                            if let Some(contract) = native.or(author) {
+                                self.native_info_mut(self.functions.len()).contract =
+                                    Some(contract);
+                            }
                             self.register_return_abi(self.functions.len(), n, properties, &result)?;
                             self.register_native_lowering(
                                 self.functions.len(),
