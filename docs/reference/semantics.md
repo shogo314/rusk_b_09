@@ -190,7 +190,10 @@ wt twice(2), twice::<Int>(2), twice("ab"); // 102 4 abab
 | `a + b`、`a - b` | `__add__`、`__sub__` | `(T, T) -> T` |
 | `a * b`、`a / b`、`a % b` | `__mul__`、`__div__`、`__mod__` | `(T, T) -> T` |
 | 単項 `+a`、`-a` | `__pos__`、`__neg__` | `(T) -> T` |
-| `a & b`、`a \| b`、`a ^ b` | `__bitand__`、`__bitor__`、`__bitxor__` | `(Int, Int) -> Int` |
+| `a & b`、`a \| b`、`a ^ b` | `__bitand__`、`__bitor__`、`__bitxor__` | `(T, T) -> T`。標準ではInt・Int128 |
+| `~a` | `__bitnot__` | `(T) -> T`。標準ではInt・Int128 |
+| `a << n`、`a >> n` | `__shl__`、`__shr__` | `(T, Int) -> T`。標準ではInt・Int128 |
+| `a ** b` | `__pow__` | 整数は`(T, Int) -> T`。Floatは`(Float, Float) -> Float` |
 | `a == b`、`a != b` | `__eq__`、`__ne__` | `(T, T) -> Bool` |
 | `a < b`、`a <= b` | `__lt__`、`__le__` | `(T, T) -> Bool` |
 | `a > b`、`a >= b` | `__gt__`、`__ge__` | `(T, T) -> Bool` |

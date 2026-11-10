@@ -7,6 +7,7 @@ pub struct RuskGrammar<'t> {
     pub root: Option<Rusk<'t>>,
     pub collect_layout: bool,
     pub layout: LayoutHints,
+    pub syntax_error: Option<String>,
 }
 impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
     fn rusk(&mut self, arg: &Rusk<'t>) -> parol_runtime::Result<()> {
@@ -36,12 +37,20 @@ impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
     }
     fn unary_op(&mut self, arg: &g::UnaryOp<'t>) -> parol_runtime::Result<()> {
         if self.collect_layout {
-            let token = match arg {
-                g::UnaryOp::Plus(v) => &v.plus,
-                g::UnaryOp::Minus(v) => &v.minus,
-                g::UnaryOp::Bang(v) => &v.bang,
-            };
+            let token = super::ast::unary_token(arg);
             self.layout.unary.insert(token.location.start());
+        }
+        Ok(())
+    }
+    fn left_angle_op(&mut self, arg: &g::LeftAngleOp<'t>) -> parol_runtime::Result<()> {
+        if let Some(tail) = &arg.left_angle_op_opt {
+            self.shift_operator(&arg.l_t, &tail.l_t);
+        }
+        Ok(())
+    }
+    fn right_angle_op(&mut self, arg: &g::RightAngleOp<'t>) -> parol_runtime::Result<()> {
+        if let Some(tail) = &arg.right_angle_op_opt {
+            self.shift_operator(&arg.g_t, &tail.g_t);
         }
         Ok(())
     }
@@ -112,6 +121,22 @@ fn first_type_identifier<'a, 't>(mut ty: &'a g::TypeName<'t>) -> &'a g::Identifi
 }
 
 impl RuskGrammar<'_> {
+    fn shift_operator(
+        &mut self,
+        first: &parol_runtime::Token<'_>,
+        second: &parol_runtime::Token<'_>,
+    ) {
+        // Lex the two angle brackets separately so nested type arguments
+        // keep the same closing tokens.
+        if first.location.end() != second.location.start() {
+            self.syntax_error.get_or_insert_with(|| {
+                super::ast::Span::token(first)
+                    .error("shift operator must be written without whitespace")
+            });
+        } else if self.collect_layout {
+            self.layout.joint_operators.insert(second.location.start());
+        }
+    }
     fn declaration(&mut self, kind: &'static str, name: &g::Identifier<'_>) {
         if self.collect_layout {
             self.layout.declarations.push(Declaration {

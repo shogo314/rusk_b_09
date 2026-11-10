@@ -903,12 +903,19 @@ fn statement_expr(e: &g::StatementExpr<'_>) -> Result<Expr, String> {
         g::StatementExpr::StatementBinaryStatementExprOpt(x) => {
             let first = match x.statement_binary.statement_unary.as_ref() {
                 g::StatementUnary::UnaryOpUnary(x) => unary_value(&x.unary_op, unary(&x.unary)?),
-                g::StatementUnary::StatementPostfix(x) => {
-                    let mut value = non_block_primary(&x.statement_postfix.non_block_primary)?;
-                    for item in &x.statement_postfix.statement_postfix_list {
+                g::StatementUnary::StatementPower(x) => {
+                    let power = &x.statement_power;
+                    let mut value = non_block_primary(&power.statement_postfix.non_block_primary)?;
+                    for item in &power.statement_postfix.statement_postfix_list {
                         value = suffix(value, &item.suffix)?;
                     }
-                    value
+                    apply_power(
+                        value,
+                        power
+                            .statement_power_opt
+                            .as_ref()
+                            .map(|p| p.power_tail.as_ref()),
+                    )?
                 }
             };
             let rest = x
@@ -927,16 +934,33 @@ fn statement_expr(e: &g::StatementExpr<'_>) -> Result<Expr, String> {
     }
 }
 fn unary_value(op: &g::UnaryOp<'_>, value: Expr) -> Expr {
-    let (op, t) = match op {
-        g::UnaryOp::Plus(x) => ("+", &x.plus),
-        g::UnaryOp::Minus(x) => ("-", &x.minus),
-        g::UnaryOp::Bang(x) => ("!", &x.bang),
-    };
+    let t = unary_token(op);
     Expr {
         span: Span::token(t),
-        kind: ExprKind::Unary(op.into(), Box::new(value)),
+        kind: ExprKind::Unary(t.text().into(), Box::new(value)),
     }
 }
+
+pub(super) fn unary_token<'a, 't>(op: &'a g::UnaryOp<'t>) -> &'a Token<'t> {
+    match op {
+        g::UnaryOp::Plus(x) => &x.plus,
+        g::UnaryOp::Minus(x) => &x.minus,
+        g::UnaryOp::Bang(x) => &x.bang,
+        g::UnaryOp::Tilde(x) => &x.tilde,
+    }
+}
+
+fn apply_power(left: Expr, tail: Option<&g::PowerTail<'_>>) -> Result<Expr, String> {
+    if let Some(tail) = tail {
+        Ok(Expr {
+            kind: ExprKind::Binary("**".into(), Box::new(left), Box::new(unary(&tail.unary)?)),
+            span: Span::token(&tail.star_star),
+        })
+    } else {
+        Ok(left)
+    }
+}
+
 fn binary_op(op: &g::BinaryOp<'_>) -> (String, Span) {
     let token = match op {
         g::BinaryOp::QuestQuest(x) => &x.quest_quest,
@@ -948,9 +972,25 @@ fn binary_op(op: &g::BinaryOp<'_>) -> (String, Span) {
         g::BinaryOp::Amp(x) => &x.amp,
         g::BinaryOp::EquEqu(x) => &x.equ_equ,
         g::BinaryOp::BangEqu(x) => &x.bang_equ,
-        g::BinaryOp::LT(x) => &x.l_t,
+        g::BinaryOp::LeftAngleOp(x) => {
+            let op = &x.left_angle_op;
+            let spelling = if op.left_angle_op_opt.is_some() {
+                "<<"
+            } else {
+                "<"
+            };
+            return (spelling.into(), Span::token(&op.l_t));
+        }
         g::BinaryOp::LTEqu(x) => &x.l_t_equ,
-        g::BinaryOp::GT(x) => &x.g_t,
+        g::BinaryOp::RightAngleOp(x) => {
+            let op = &x.right_angle_op;
+            let spelling = if op.right_angle_op_opt.is_some() {
+                ">>"
+            } else {
+                ">"
+            };
+            return (spelling.into(), Span::token(&op.g_t));
+        }
         g::BinaryOp::GTEqu(x) => &x.g_t_equ,
         g::BinaryOp::LTQuest(x) => &x.l_t_quest,
         g::BinaryOp::GTQuest(x) => &x.g_t_quest,
@@ -973,8 +1013,9 @@ fn precedence(op: &str) -> u8 {
         "&" => 7,
         "==" | "!=" | "<" | "<=" | ">" | ">=" => 8,
         "<?" | ">?" => 9,
-        "+" | "-" => 10,
-        "*" | "/" | "%" => 11,
+        "<<" | ">>" => 10,
+        "+" | "-" => 11,
+        "*" | "/" | "%" => 12,
         _ => unreachable!(),
     }
 }
@@ -1039,18 +1080,11 @@ fn binary(first: Expr, rest: Vec<((String, Span), Expr)>) -> Result<Expr, String
 }
 fn unary(e: &g::Unary<'_>) -> Result<Expr, String> {
     match e {
-        g::Unary::UnaryOpUnary(x) => {
-            let (op, t) = match x.unary_op.as_ref() {
-                g::UnaryOp::Plus(x) => ("+", &x.plus),
-                g::UnaryOp::Minus(x) => ("-", &x.minus),
-                g::UnaryOp::Bang(x) => ("!", &x.bang),
-            };
-            Ok(Expr {
-                kind: ExprKind::Unary(op.into(), Box::new(unary(&x.unary)?)),
-                span: Span::token(t),
-            })
-        }
-        g::Unary::Postfix(x) => postfix(&x.postfix),
+        g::Unary::UnaryOpUnary(x) => Ok(unary_value(&x.unary_op, unary(&x.unary)?)),
+        g::Unary::Power(x) => apply_power(
+            postfix(&x.power.postfix)?,
+            x.power.power_opt.as_ref().map(|p| p.power_tail.as_ref()),
+        ),
     }
 }
 fn postfix(p: &g::Postfix<'_>) -> Result<Expr, String> {

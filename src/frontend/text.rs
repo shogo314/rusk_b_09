@@ -34,6 +34,7 @@ pub(crate) struct LayoutHints {
     // First type token, including tuple-type prefixes skipped by the CST.
     pub type_starts: BTreeSet<usize>,
     pub unary: BTreeSet<usize>,
+    pub joint_operators: BTreeSet<usize>,
     pub negative_patterns: BTreeSet<usize>,
     pub blocks: BTreeSet<usize>,
     pub indexes: BTreeSet<usize>,

@@ -46,6 +46,9 @@ fn parse_grammar<'t>(
         }
         format!("{file}: syntax error")
     })?;
+    if let Some(error) = grammar.syntax_error.take() {
+        return Err(error);
+    }
     Ok(grammar)
 }
 pub(crate) fn parse(text: &str, file: &str) -> Result<Vec<ast::Stmt>, String> {

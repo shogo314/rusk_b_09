@@ -149,7 +149,7 @@ loop_statement  = "loop" block ;
 
 演算子の一覧・優先順位・結合は[演算子](operators.md#precedence)を参照してください。以下に式の構造を示します。
 
-比較はビット演算より強いため、ビットを調べるときは `(mask & bit) != 0` と括弧を付けます。`0 <= x < n` は各隣接項を比較し、偽になった時点で評価を止めます。シフト・ビット反転・ビット複合代入・`++`・`--`・三項演算子は未実装です。
+比較は `&`・`|`・`^` より強いため、ビットを調べるときは `(mask & bit) != 0` と括弧を付けます。`0 <= x < n` は各隣接項を比較し、偽になった時点で評価を止めます。シフト記号 `<<`・`>>` は間に空白を入れずに書きます。
 
 ```ebnf
 expression = if_expression | match_expression | plain_expression ;
@@ -164,10 +164,12 @@ bit_or     = bit_xor { "|" bit_xor } ;
 bit_xor    = bit_and { "^" bit_and } ;
 bit_and    = comparison { "&" comparison } ;
 comparison = extreme { comparison_operator extreme } ;
-extreme    = addition { ("<?" | ">?") addition } ;
+extreme    = shift { ("<?" | ">?") shift } ;
+shift      = addition { ("<<" | ">>") addition } ;
 addition   = multiplication { ("+" | "-") multiplication } ;
 multiplication = unary { ("*" | "/" | "%") unary } ;
-unary      = ("+" | "-" | "!") unary | postfix ;
+unary      = ("+" | "-" | "!" | "~") unary | power ;
+power      = postfix [ "**" unary ] ;
 postfix    = primary { "[" expression "]"
                     | "." identifier | "(" expression_list ")" | "?!" } ;
 assignment_operator = ":=" | "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "<?=" | ">?=" ;

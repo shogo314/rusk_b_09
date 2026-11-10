@@ -36,6 +36,8 @@ externの引数契約を通常・ジェネリックexternと呼び出し側の�
 
 数値型ではFloatとInt128を実装しました。両方でリテラル・基本演算・比較・明示変換・入出力を提供します。 [Float](../reference/types.md#float)・[Int128](../reference/types.md#int128)
 
+累乗・シフト・ビット反転を標準の演算フックに接続しました。 [累乗とシフト](../reference/operators.md#powers-shifts)
+
 ## フォーマッタの作業
 
 | 順序 | 仕事 | 確認すること |

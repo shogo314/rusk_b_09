@@ -210,3 +210,61 @@ fn int128_overflow_input_and_narrowing_report_locations() {
         );
     }
 }
+
+#[test]
+fn power_shifts_and_complement_preserve_precedence_and_fixed_width() {
+    runs(
+        include_str!("../examples/beta09/numeric_operators.rusk"),
+        "",
+        "512 -4 4 1\n0.125 1267650600228229401496703205376\n8 2 -2 -2 12\n-9223372036854775808 0 -1 0\n-170141183460469231731687303715884105728 0 -1 -1 -1\n",
+    );
+}
+
+#[test]
+fn power_evaluates_left_to_right_and_shifts_keep_nested_type_arguments() {
+    runs(
+        r#"
+fn record(order: Int, digit: Int) -> Int {
+    order *= 10;
+    order += digit;
+    return digit;
+}
+fn identity<T>(x: T) -> T { return x; }
+let order := 0;
+wt record(order, 2) ** record(order, 3) ** record(order, 1), order;
+let matrix: Vec<Vec<Int>> := [[4]];
+wt identity::<Vec<Vec<Int>>>(matrix)[0][0]>>1;
+wt (-2) ** 63, (-9223372036854775808) ** 1, (-1i128) ** 9223372036854775807;
+wt is_nan((-1.0) ** 0.5), (~ ~7), (~ ~7i128);
+"#,
+        "",
+        "8 231\n2\n-9223372036854775808 -9223372036854775808 -1\nYes 7 7\n",
+    );
+}
+
+#[test]
+fn invalid_shift_spelling_and_checked_powers_report_locations() {
+    for source in ["wt 1 < < 2;", "wt 1 > // gap\n> 2;"] {
+        let output = Case::new(source).compile();
+        assert_eq!(output.status.code(), Some(1));
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(
+            error.contains("main.rusk:1:") && error.contains("without whitespace"),
+            "{error}"
+        );
+    }
+    for (source, expected) in [
+        ("wt 2 ** -1;", "negative integer exponent"),
+        ("wt 2i128 ** -1;", "negative integer exponent"),
+        ("wt 2 ** 63;", "integer overflow"),
+        ("wt 2i128 ** 127;", "Int128 overflow"),
+    ] {
+        let output = Case::new(source).run("");
+        assert_eq!(output.status.code(), Some(1));
+        let error = String::from_utf8(output.stderr).unwrap();
+        assert!(
+            error.contains("main.rusk:1:") && error.contains(expected),
+            "{error}"
+        );
+    }
+}

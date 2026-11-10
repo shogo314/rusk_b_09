@@ -242,7 +242,10 @@ impl<'a> Layout<'a> {
                 _ => Doc::Text(" "),
             });
         }
-        if matches!(b.text, ";" | "," | ":" | "." | "::" | "?!") || self.angles.contains(&next) {
+        if matches!(b.text, ";" | "," | ":" | "." | "::" | "?!")
+            || self.angles.contains(&next)
+            || self.hints.joint_operators.contains(&b.range.start)
+        {
             return None;
         }
         if matches!(a.text, "." | "::") {
@@ -287,6 +290,7 @@ impl<'a> Layout<'a> {
                     | "+"
                     | "-"
                     | "*"
+                    | "**"
                     | "/"
                     | "%"
                     | "=="
