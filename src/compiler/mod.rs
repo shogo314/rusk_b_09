@@ -77,6 +77,7 @@ struct Function {
 #[derive(Default)]
 pub struct Compiler {
     context: FunctionContext,
+    expression_depth: usize,
     types: BTreeMap<String, String>,
     enum_definitions: BTreeMap<String, enums::Definition>,
     enums: BTreeMap<String, enums::Enum>,
@@ -644,13 +645,12 @@ impl Compiler {
                 self.call("__write__", vec![newline], None, &span)?;
             }
             Stmt::If(cond, yes, no) => {
-                let span = cond.span().clone();
                 let (cond, bindings) = self.pattern_condition(cond)?;
                 if self.context.diverged {
                     return Ok(());
                 }
                 let before = self.context.scopes.clone();
-                let yes_body = self.capture(|c| c.pattern_statement(&bindings, yes, &span))?;
+                let yes_body = self.capture(|c| c.pattern_statement(&bindings, yes))?;
                 let yes_state = self.context.scopes.clone();
                 let yes_exit = self.context.diverged;
                 self.context.scopes = before;
@@ -709,7 +709,7 @@ impl Compiler {
                     if matches!(cond, Condition::Expr(_)) {
                         c.release_temps();
                     }
-                    c.pattern_statement(&bindings, body, cond.span())?;
+                    c.pattern_statement(&bindings, body)?;
                     c.release_temps();
                     Ok(())
                 })?;
@@ -901,7 +901,15 @@ impl Compiler {
         if self.context.diverged {
             return Ok(Value::never());
         }
+        const MAX_EXPRESSION_DEPTH: usize = 128;
+        if self.expression_depth >= MAX_EXPRESSION_DEPTH {
+            return Err(e.span.error(format!(
+                "expression nesting limit ({MAX_EXPRESSION_DEPTH}) exceeded"
+            )));
+        }
+        self.expression_depth += 1;
         let result = self.expr_inner(e, expected);
+        self.expression_depth -= 1;
         match result {
             Err(error) if error == crate::ir::hir::DIVERGED => Ok(Value::never()),
             Err(error) => Err(error),

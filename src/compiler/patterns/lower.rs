@@ -209,19 +209,19 @@ impl Compiler {
         &mut self,
         bindings: &[(Name, Value)],
         statement: &Stmt,
-        span: &Span,
     ) -> Result<(), String> {
         if bindings.is_empty() {
             return self.statement(statement);
         }
-        self.scoped_pattern_values(bindings, |c| {
-            c.statement(statement)?;
-            if c.context.diverged {
-                Ok(Value::never())
-            } else {
-                c.literal("Unit", "", span)
+        self.context.scopes.push(BTreeMap::new());
+        let body = self.capture(|c| {
+            for (name, value) in bindings {
+                c.declare(name, value.ty.clone(), Some(value.clone()))?;
             }
-        })?;
+            c.statement(statement)
+        });
+        self.context.scopes.pop();
+        self.context.body.push(Instruction::Scope(body?));
         Ok(())
     }
     pub(in crate::compiler) fn match_expression(

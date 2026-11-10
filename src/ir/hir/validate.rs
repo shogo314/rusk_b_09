@@ -4,6 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 struct Check<'a> {
     program: &'a Program,
     values: BTreeMap<ValueId, String>,
+    defined: BTreeSet<ValueId>,
+    scopes: Vec<Vec<ValueId>>,
     loops: BTreeSet<LoopId>,
     bindings: BTreeSet<ValueId>,
     access_bindings: BTreeSet<ValueId>,
@@ -39,13 +41,14 @@ impl Check<'_> {
         if !matches!(value.id, ValueId::Local(_)) {
             return Err("IR definition requires a local ID".into());
         }
-        if self
-            .values
-            .insert(value.id.clone(), value.ty.clone())
-            .is_some()
-        {
+        if !self.defined.insert(value.id.clone()) {
             return Err("duplicate IR value ID".into());
         }
+        self.values.insert(value.id.clone(), value.ty.clone());
+        self.scopes
+            .last_mut()
+            .expect("IR definition belongs to a body")
+            .push(value.id.clone());
         Ok(())
     }
     fn field(&self, owner: &Value, index: usize) -> Result<&str, String> {
@@ -57,6 +60,14 @@ impl Check<'_> {
             .ok_or_else(|| "invalid IR field".into())
     }
     fn body(&mut self, body: &Body) -> Result<(), String> {
+        self.scopes.push(vec![]);
+        let result = self.instructions(body);
+        for local in self.scopes.pop().expect("checked IR body scope") {
+            self.values.remove(&local);
+        }
+        result
+    }
+    fn instructions(&mut self, body: &Body) -> Result<(), String> {
         for op in &body.instructions {
             match op {
                 Instruction::Literal { result, value } => {
@@ -266,6 +277,8 @@ impl Program {
         let base = Check {
             program: self,
             values: BTreeMap::new(),
+            defined: BTreeSet::new(),
+            scopes: vec![],
             loops: BTreeSet::new(),
             bindings: BTreeSet::new(),
             access_bindings: BTreeSet::new(),
@@ -273,7 +286,7 @@ impl Program {
             result: "Unit",
             caller_location: false,
         };
-        for ty in self.types.values() {
+        for (name, ty) in &self.types {
             match ty {
                 Type::Record(fields) => {
                     for (_, t) in fields {
@@ -293,7 +306,10 @@ impl Program {
                         .functions
                         .get(*function)
                         .ok_or("invalid callable function ID")?;
-                    if f.params.get(1..) != Some(params.as_slice()) || &f.result != result {
+                    if f.params.first() != Some(name)
+                        || f.params.get(1..) != Some(params.as_slice())
+                        || &f.result != result
+                    {
                         return Err("IR callable signature mismatch".into());
                     }
                 }
@@ -336,6 +352,8 @@ impl Program {
                 ..Check {
                     program: self,
                     values: BTreeMap::new(),
+                    defined: BTreeSet::new(),
+                    scopes: vec![],
                     loops: BTreeSet::new(),
                     bindings: BTreeSet::new(),
                     access_bindings: BTreeSet::new(),
@@ -364,6 +382,43 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn branch_local_values_cannot_escape_or_reuse_an_identity() {
+        let value = Value {
+            id: ValueId::Local(0),
+            ty: "Bool".into(),
+        };
+        let literal = Instruction::Literal {
+            result: value.clone(),
+            value: Literal::Bool(true),
+        };
+        let mut program = Program {
+            types: [("Bool".into(), Type::Scalar(Scalar::Bool))].into(),
+            functions: vec![],
+            main: Body {
+                instructions: vec![
+                    Instruction::Scope(Body {
+                        instructions: vec![literal.clone()],
+                    }),
+                    Instruction::Release(vec![value.id.clone()]),
+                ],
+            },
+        };
+        assert!(
+            program
+                .validate()
+                .unwrap_err()
+                .contains("release of undefined IR value")
+        );
+        program.main.instructions[1] = literal;
+        assert!(
+            program
+                .validate()
+                .unwrap_err()
+                .contains("duplicate IR value ID")
+        );
+    }
     #[test]
     fn wrong_overload_signatures_and_unresolved_values_are_rejected() {
         let result = Value {

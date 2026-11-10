@@ -12,6 +12,24 @@ fn output(source: &str, input: &str, expected: &str) {
 }
 
 #[test]
+fn if_let_bindings_are_cleaned_up_within_the_branch() {
+    output(
+        r#"
+let value:=3;
+if let Some(n)=Some(value){n+=1;}
+outer: loop {
+    if let Some(n)=Some(value){
+        while true { wt n; break outer; }
+    }
+}
+wt value;
+"#,
+        "",
+        "4\n4\n",
+    );
+}
+
+#[test]
 fn variants_generics_and_payload_hints() {
     output(
         r#"

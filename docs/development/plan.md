@@ -24,7 +24,7 @@
 
 ## 進捗
 
-内部エラーのpanic hookと処理段階の記録を実装しました。HIR/LIRの構造検査と利用者のfixed契約検査を分離し、内部不整合だけをpanicとして報告します。残るエラー経路の全体監査は継続します。実装と検査の境界は[変換パイプライン](pipeline.md)に記載しています。
+内部エラーのpanic hookと処理段階の記録を実装しました。HIR/LIRの構造検査と利用者のfixed契約検査を分離し、内部不整合をpanicとして報告します。監査では、深い入力の診断、HIRのスコープ検査、分岐の一時値の解放を修正しました。 [変換パイプラインと監査結果](pipeline.md#error-path-audit)
 
 基盤の変更は通常版の全Cargoテストと、CLI・パイプライン・fixed・readonly・noescapeの最適化無効版で確認しました。既存examplesのC++・HIR・LIR出力も両モードで変更前と照合しています。
 
@@ -39,6 +39,12 @@ externの引数契約を通常・ジェネリックexternと呼び出し側の�
 累乗・シフト・ビット反転を標準の演算フックに接続しました。`<=>`と大小比較のフォールバックを実装し、既定の安定ソートとキー付きソートに全順序を使います。 [累乗とシフト](../reference/operators.md#powers-shifts)・[全順序](../reference/operators.md#total-order)
 
 `enumerate`・`zip`・`reversed`を既存の反復規約へ接続し、`sum`・`min`・`max`・`argmin`・`argmax`を一般の走査に対応させました。 [走査のAPI](../library/algorithms.md#iteration-adapters)・[集計のAPI](../library/algorithms.md#aggregation)
+
+### β08からの移行
+
+- `sort`・`sorted`と`sort_by_key`を独自型に使う場合は、要素やキーの`__cmp__`を定義します。従来の`__lt__`や独自の比較を使う場合は、厳密弱順序を満たす比較関数を`sort_by_comp`に渡します。`sorted`と同様に元の配列を保ちたい場合は、先に`copy`します。Floatの全順序には`total_less`を渡せます。 [安定ソート](../library/algorithms.md#sorting)
+- 組み込み標準ライブラリは、引き続き自動で読み込みます。リポジトリ内の個別ファイルを直接参照する開発用コードでは、新しい`lib/`内の配置に合わせてパスを更新します。
+- 深い式やincludeで処理系の上限に達した場合は、式を複数の文に分けるか、includeの入れ子を減らします。 [エラー経路の監査](pipeline.md#error-path-audit)
 
 ## フォーマッタの作業
 

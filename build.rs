@@ -10,6 +10,8 @@ fn main() {
     parol::build::Builder::with_explicit_output_dir(&out)
         .max_lookahead(3)
         .expect("valid lookahead")
+        // Bound the recursion needed to build, print and drop the generated CST.
+        .max_parsing_depth(1024)
         .grammar_file("rusk.par")
         .parser_output_file("rusk_parser.rs")
         .actions_output_file("rusk_grammar_trait.rs")

@@ -6,6 +6,8 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+const MAX_INCLUDE_DEPTH: usize = 128;
+
 pub struct Loaded {
     pub statements: Vec<Stmt>,
     pub dependencies: Vec<PathBuf>,
@@ -100,6 +102,11 @@ impl<'a> Loader<'a> {
         }
         if self.loaded.contains(&canonical) {
             return Ok(());
+        }
+        if self.active.len() >= MAX_INCLUDE_DEPTH {
+            return Err(error(format!(
+                "include nesting limit ({MAX_INCLUDE_DEPTH}) exceeded"
+            )));
         }
         let text = self
             .files

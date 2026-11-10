@@ -13,7 +13,7 @@ mod rusk_parser {
     include!(concat!(env!("OUT_DIR"), "/rusk_parser.rs"));
 }
 
-use parol_runtime::Report;
+use parol_runtime::{LexerError, ParolError, ParserError, Report};
 struct ErrorReporter;
 impl Report for ErrorReporter {}
 
@@ -41,6 +41,20 @@ fn parse_grammar<'t>(
         ..Default::default()
     };
     rusk_parser::parse(text, file, &mut grammar).map_err(|e| {
+        match &e {
+            ParolError::ParserError(ParserError::MaxParsingDepthExceeded { .. }) => {
+                return format!("{file}: parser nesting limit exceeded");
+            }
+            ParolError::ParserError(
+                ParserError::DataError(_)
+                | ParserError::InternalError(_)
+                | ParserError::TreeError { .. },
+            )
+            | ParolError::LexerError(LexerError::InternalError(_)) => {
+                panic!("parser invariant violated: {e}");
+            }
+            _ => {}
+        }
         if ErrorReporter::report_error(&e, file).is_err() {
             eprintln!("{e:?}");
         }

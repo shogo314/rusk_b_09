@@ -220,6 +220,97 @@ fn invalid_sources_are_user_diagnostics_and_preserve_existing_output() {
 }
 
 #[test]
+fn generated_deep_inputs_report_limits_without_replacing_output() {
+    let case = Case::new("");
+    let source = case.0.join("main.rusk");
+    let target = case.0.join("a.cpp");
+    fs::write(&target, "previous output").unwrap();
+    let parens = format!("wt {}1{};", "(".repeat(512), ")".repeat(512));
+    for args in [
+        vec!["compile", "main.rusk", "--emit", "cst"],
+        vec!["compile", "main.rusk", "--emit", "ast"],
+        vec!["fmt", "main.rusk", "--write"],
+        vec!["doc", "--file", "main.rusk"],
+    ] {
+        fs::write(&source, &parens).unwrap();
+        let output = cli(&case, &args);
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{args:?}: {error}");
+        assert!(error.contains("main.rusk: parser nesting limit"), "{error}");
+        assert_eq!(fs::read_to_string(&source).unwrap(), parens);
+        assert_eq!(fs::read_to_string(&target).unwrap(), "previous output");
+    }
+    for expression in [
+        format!("{}1", "1+".repeat(512)),
+        format!("{}1", "1**".repeat(512)),
+    ] {
+        fs::write(&source, format!("wt {expression};")).unwrap();
+        for options in [&[][..], &["--no-opt"][..]] {
+            let mut args = vec!["compile", "main.rusk"];
+            args.extend(options);
+            let output = cli(&case, &args);
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(output.status.code(), Some(1), "{error}");
+            assert!(
+                error.contains("nesting limit") && error.contains("main.rusk:"),
+                "{error}"
+            );
+            assert_eq!(fs::read_to_string(&target).unwrap(), "previous output");
+        }
+    }
+
+    fs::write(&source, "include \"0.rusk\";").unwrap();
+    for n in 0..200 {
+        let text = if n == 199 {
+            "wt 1;".into()
+        } else {
+            format!("include \"{}.rusk\";", n + 1)
+        };
+        fs::write(case.0.join(format!("{n}.rusk")), text).unwrap();
+    }
+    let output = cli(&case, &["dependencies", "main.rusk"]);
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{error}");
+    assert!(
+        error.contains(".rusk:1:") && error.contains("include nesting limit"),
+        "{error}"
+    );
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn syntax_and_type_mutations_use_the_normal_cli_error_path() {
+    let case = Case::new("");
+    let target = case.0.join("a.cpp");
+    let seed = "fn pick<T>(noescape x:T, y:T)->T{return y;} wt pick(1, 2);";
+    for (from, to, syntax_error) in [
+        ("fn pick", "fn (", true),
+        ("->T", "->", true),
+        ("return y", "return x", false),
+        ("pick(1, 2)", "pick(1, \"2\")", false),
+        ("wt pick", "wt missing", false),
+    ] {
+        let source = seed.replace(from, to);
+        fs::write(case.0.join("main.rusk"), &source).unwrap();
+        let result = cli(&case, &["fmt", "main.rusk"]);
+        assert_eq!(
+            result.status.code(),
+            Some(i32::from(syntax_error)),
+            "{source}: {result:?}"
+        );
+        for options in [&[][..], &["--no-opt"][..]] {
+            let mut args = vec!["compile", "main.rusk"];
+            args.extend(options);
+            let result = cli(&case, &args);
+            let error = String::from_utf8_lossy(&result.stderr);
+            assert_eq!(result.status.code(), Some(1), "{source}: {error}");
+            assert!(error.contains("main.rusk:"), "{source}: {error}");
+            assert!(!target.exists());
+        }
+    }
+}
+
+#[test]
 fn output_write_errors_are_user_diagnostics() {
     let case = Case::new("wt 1;");
     let output = cli(&case, &["compile", "main.rusk", "-o", "missing/output.cpp"]);
