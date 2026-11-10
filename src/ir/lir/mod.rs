@@ -323,6 +323,27 @@ pub(crate) fn lower_program(program: &hir::Program) -> Program {
 }
 
 impl Program {
+    pub(crate) fn assert_valid(&self) {
+        let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::LirValidation);
+        if let Err(error) = self.validate() {
+            panic!("LIR invariant violated: {error}");
+        }
+    }
+
+    // Source contracts can fail on otherwise well-formed IR. Keep their
+    // diagnostics out of the structural invariant check used by assert_valid.
+    pub(crate) fn validate_bindings(&self) -> Result<(), String> {
+        let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Bindings);
+        for f in &self.functions {
+            if let Some(body) = &f.body {
+                crate::analysis::bindings::validate(body).map_err(|error| {
+                    format!("{error}\nwhile checking binding contracts in '{}'", f.name)
+                })?;
+            }
+        }
+        crate::analysis::bindings::validate(&self.main)
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         for (id, f) in self.functions.iter().enumerate() {
             if f.id != id
@@ -336,13 +357,9 @@ impl Program {
             f.access.validate(&f.result, &self.types)?;
             if let Some(body) = &f.body {
                 self.validate_body(body, &f.params, &f.result, true)?;
-                crate::analysis::bindings::validate(body).map_err(|error| {
-                    format!("{error}\nwhile checking binding contracts in '{}'", f.name)
-                })?;
             }
         }
-        self.validate_body(&self.main, &[], "Unit", false)?;
-        crate::analysis::bindings::validate(&self.main)
+        self.validate_body(&self.main, &[], "Unit", false)
     }
     fn validate_body(
         &self,
@@ -389,6 +406,7 @@ impl Program {
             }
         };
         let mut access_bindings = std::collections::BTreeSet::new();
+        let mut binding_annotations = std::collections::BTreeSet::new();
         let mut escape_parameters = std::collections::BTreeSet::new();
         for block in &body.blocks {
             for op in &block.instructions {
@@ -462,7 +480,14 @@ impl Program {
                             return Err("source binding requires a local identity".into());
                         }
                     }
-                    Operation::AnnotateBinding { value: v, .. } => value(v)?,
+                    Operation::AnnotateBinding { value: v, .. } => {
+                        value(v)?;
+                        if !matches!(v.id, ValueId::Local(_))
+                            || !binding_annotations.insert(v.id.clone())
+                        {
+                            return Err("invalid or duplicate LIR binding annotation".into());
+                        }
+                    }
                     Operation::AnnotateEscape { parameter, .. } => {
                         if *parameter >= params.len() || !escape_parameters.insert(*parameter) {
                             return Err("invalid or duplicate LIR escape annotation".into());

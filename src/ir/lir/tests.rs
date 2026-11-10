@@ -86,6 +86,70 @@ fn corrupt_jump_targets_are_rejected() {
     assert!(program.validate().is_ok());
 }
 #[test]
+fn fixed_source_contracts_are_separate_from_ir_invariants() {
+    use crate::frontend::ast::{BindingAnnotation, BindingMode, Span};
+    let span = Span {
+        file: "fixed-source.rusk".into(),
+        line: 1,
+        column: 1,
+    };
+    let mut program = Program {
+        types: BTreeMap::from([("Int".into(), hir::Type::Scalar(hir::Scalar::I64))]),
+        functions: vec![],
+        main: Function {
+            slots: vec![int(0), int(1)],
+            blocks: vec![Block {
+                instructions: vec![
+                    Operation::Literal {
+                        result: int(1),
+                        value: hir::Literal::Int(1),
+                    },
+                    Operation::Declare {
+                        result: int(0),
+                        initial: Some(int(1)),
+                    },
+                    Operation::AnnotateBinding {
+                        value: int(0),
+                        info: hir::BindingInfo {
+                            name: "x".into(),
+                            declaration: span.clone(),
+                            annotation: BindingAnnotation {
+                                mode: BindingMode::Fixed,
+                                span: span.clone(),
+                            },
+                        },
+                    },
+                    Operation::Rebind {
+                        target: hir::Place::Local(int(0).id),
+                        value: int(1),
+                        span: Some(span),
+                    },
+                ],
+                terminator: Terminator::Return {
+                    span: None,
+                    value: None,
+                    cleanup: vec![],
+                },
+            }],
+        },
+    };
+    program.assert_valid();
+    let error = program.validate_bindings().unwrap_err();
+    assert!(
+        error.contains("fixed-source.rusk:1:1:") && error.contains("cannot rebind fixed"),
+        "{error}"
+    );
+    let annotation = program.main.blocks[0].instructions[2].clone();
+    program.main.blocks[0].instructions.push(annotation);
+    assert!(
+        program
+            .validate()
+            .unwrap_err()
+            .contains("duplicate LIR binding annotation")
+    );
+}
+
+#[test]
 fn escape_metadata_requires_unique_parameter_identities_and_preserves_return_locations() {
     let span = crate::frontend::ast::Span {
         file: "test".into(),

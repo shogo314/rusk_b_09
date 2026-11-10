@@ -121,30 +121,19 @@ impl Compiler {
             hir.functions[id].effects =
                 crate::analysis::effects::Summary::unanalyzed(hir.functions[id].params.len());
         }
-        {
-            let _stage = enter(Stage::HirValidation);
-            hir.validate()?;
-        }
+        hir.assert_valid();
         let mut lir = {
             let _stage = enter(Stage::Lir);
             crate::ir::lir::lower_program(hir)
         };
-        {
-            let _stage = enter(Stage::LirValidation);
-            lir.validate()?;
-        }
+        lir.assert_valid();
+        lir.validate_bindings()?;
         {
             let _stage = enter(Stage::Effects);
             self.resolve_effects(hir, &mut lir, conditional)?;
         }
-        {
-            let _stage = enter(Stage::HirValidation);
-            hir.validate()?;
-        }
-        {
-            let _stage = enter(Stage::LirValidation);
-            lir.validate()?;
-        }
+        hir.assert_valid();
+        lir.assert_valid();
         {
             let _stage = enter(Stage::Effects);
             crate::analysis::effects::validate_noescape(&lir)?;
@@ -157,14 +146,8 @@ impl Compiler {
             hir.functions[id].access = summary.clone();
             lir.functions[id].access = summary;
         }
-        {
-            let _stage = enter(Stage::HirValidation);
-            hir.validate()?;
-        }
-        {
-            let _stage = enter(Stage::LirValidation);
-            lir.validate()?;
-        }
+        hir.assert_valid();
+        lir.assert_valid();
         Ok(lir)
     }
     fn resolve_effects(

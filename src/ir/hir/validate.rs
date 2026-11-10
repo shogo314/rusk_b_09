@@ -71,6 +71,7 @@ impl Check<'_> {
                     self.define(result)?;
                 }
                 Instruction::Object { result, expression } => {
+                    self.ty(&result.ty)?;
                     match expression {
                         Rvalue::Share(value) => {
                             self.value(value)?;
@@ -252,6 +253,13 @@ impl Check<'_> {
     }
 }
 impl Program {
+    pub(crate) fn assert_valid(&self) {
+        let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::HirValidation);
+        if let Err(error) = self.validate() {
+            panic!("HIR invariant violated: {error}");
+        }
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         let base = Check {
             program: self,

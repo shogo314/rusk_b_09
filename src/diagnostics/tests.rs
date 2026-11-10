@@ -43,6 +43,38 @@ fn panic_hook_child() {
             drop(_stage);
             panic!("without a stage");
         }
+        "hir" => {
+            use crate::ir::hir::{Body, Instruction, Program, Rvalue, Value, ValueId};
+            Program {
+                types: Default::default(),
+                functions: vec![],
+                main: Body {
+                    instructions: vec![Instruction::Object {
+                        result: Value {
+                            id: ValueId::Local(0),
+                            ty: "Missing".into(),
+                        },
+                        expression: Rvalue::Variant {
+                            index: 0,
+                            fields: vec![],
+                        },
+                    }],
+                },
+            }
+            .assert_valid();
+        }
+        "lir" => {
+            use crate::ir::lir::{Function, Program};
+            Program {
+                types: Default::default(),
+                functions: vec![],
+                main: Function {
+                    slots: vec![],
+                    blocks: vec![],
+                },
+            }
+            .assert_valid();
+        }
         _ => panic!("unknown fixture"),
     }
 }
@@ -65,6 +97,8 @@ fn panic_hook_reports_context_and_optional_backtrace_in_a_child_process() {
             "C++ generation",
             true,
         ),
+        ("hir", "HIR invariant violated:", "HIR validation", false),
+        ("lir", "LIR invariant violated:", "LIR validation", false),
     ] {
         let output = Command::new(std::env::current_exe().unwrap())
             .args([
@@ -85,11 +119,16 @@ fn panic_hook_reports_context_and_optional_backtrace_in_a_child_process() {
             format!("stage: {stage}"),
             format!("reason: {reason}"),
             "Rust location:".to_string(),
-            "diagnostics/tests.rs:".to_string(),
             "Please report this as a Rusk bug".to_string(),
         ] {
             assert!(error.contains(&expected), "missing {expected}: {error}");
         }
+        let location = match kind {
+            "hir" => "hir/validate.rs:",
+            "lir" => "lir/mod.rs:",
+            _ => "diagnostics/tests.rs:",
+        };
+        assert!(error.contains(location), "{error}");
         if trace {
             assert!(error.contains("backtrace:\n"), "{error}");
             assert!(error.contains("panic_hook_child"), "{error}");

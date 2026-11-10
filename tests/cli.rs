@@ -71,7 +71,13 @@ fn default_output_and_optimization_flags_keep_the_existing_compilation() {
     assert!(output.status.success());
     assert_eq!(output.stdout, b"7 7\n");
     let expected = fs::read(case.0.join("main.cpp")).unwrap();
-    let output = cli(&case, &["compile", "main.rusk"]);
+    // Case::run honors the reference-backend setting; use the same mode when
+    // comparing its explicit output path with the CLI's default output path.
+    let mut args = vec!["compile", "main.rusk"];
+    if std::env::var_os("RUSK_TEST_NO_OPT").is_some() {
+        args.push("--no-opt");
+    }
+    let output = cli(&case, &args);
     assert!(output.status.success(), "{output:?}");
     assert!(output.stdout.is_empty() && output.stderr.is_empty());
     assert_eq!(fs::read(case.0.join("a.cpp")).unwrap(), expected);
