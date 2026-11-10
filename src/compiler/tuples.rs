@@ -128,7 +128,7 @@ impl Compiler {
 
     fn predeclared_tuple_value(&self, ty: &str) -> bool {
         fn eligible(compiler: &Compiler, ty: &str, depth: usize) -> bool {
-            use crate::ir::hir::{Scalar, Type};
+            use crate::ir::hir::Type;
             if depth >= 64 {
                 return false;
             }
@@ -141,7 +141,7 @@ impl Compiler {
                 });
             }
             match compiler.native_types.get(ty).map(|metadata| &metadata.kind) {
-                Some(Type::Scalar(Scalar::I64 | Scalar::Bool | Scalar::Char)) => true,
+                Some(kind) if kind.scalar_value() => true,
                 Some(Type::Buffer(element) | Type::Vector(element)) => {
                     eligible(compiler, element, depth + 1)
                 }

@@ -13,7 +13,8 @@
 | 項目 | 書き方 | 例・制限 |
 |---|---|---|
 | 識別子 | `[a-zA-Z_][a-zA-Z0-9_]*` | `value`、`Point`、`_count`。日本語や数字から始まる名前は不可 |
-| 整数 | `[0-9]+` | `0`、`123`。十進数のみ。桁区切り・16進数・小数は不可 |
+| 整数 | `[0-9]+` | `0`、`123`。十進数のみ。桁区切り・16進数は不可 |
+| 浮動小数点 | 小数点を含む十進数、または指数表記 | `1.25`、`2e-6`、`1.25E+3` |
 | 文字列 | 二重引用符で囲む | `"hello"`。内容はASCII、エスケープはJSON形式 |
 | 文字 | 単一引用符で1文字を囲む | `'a'`、`'\n'`。ASCIIの1文字 |
 | 真偽値 | `true` / `false` | 出力時の表記は `Yes` / `No` |
@@ -185,8 +186,12 @@ array      = "[" [ expression ( ";" expression | { "," expression } ) ] "]" ;
 tuple_tail = "," expression { "," expression } [ "," ] ;
 record_fields = "{" field_value { "," field_value } [ "," ] "}" ;
 field_value   = identifier ":" expression ;
-literal       = integer_literal | string_literal | character_literal
+literal       = number_literal | string_literal | character_literal
               | "true" | "false" ;
+number_literal = integer_literal | float_literal ;
+float_literal  = integer_literal "." integer_literal [ exponent ]
+               | integer_literal exponent ;
+exponent       = ( "e" | "E" ) [ "+" | "-" ] integer_literal ;
 ```
 
 | 形 | 例 | 意味 |
@@ -255,7 +260,7 @@ variantを持つenumを定義し、`match`で分岐します。matchの対象は
 condition = expression | "let" pattern "=" expression ;
 pattern = pattern_atom { "|" pattern_atom } ;
 pattern_atom = reference [ "(" [ pattern_list ] ")" | struct_pattern_fields ]
-             | literal | "-" integer_literal
+             | literal | "-" number_literal
              | "(" [ pattern [ "," pattern { "," pattern } [ "," ] ] ] ")" ;
 pattern_list = pattern { "," pattern } [ "," ] ;
 struct_pattern_fields = "{" [ pattern_field { "," pattern_field } [ "," ] ] "}" ;

@@ -5,6 +5,7 @@ mod lower;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Atom {
     Int(i64),
+    Float(u64),
     Bool(bool),
     Char(u8),
     Str(String),
@@ -13,6 +14,10 @@ impl Atom {
     fn parse(ty: &str, text: &str) -> Self {
         match ty {
             "Int" => Self::Int(text.parse().expect("validated integer")),
+            "Float" => {
+                let value = text.parse::<f64>().expect("validated Float");
+                Self::Float(if value == 0.0 { 0 } else { value.to_bits() })
+            }
             "Bool" => Self::Bool(text == "true"),
             "Str" => Self::Str(serde_json::from_str(text).expect("validated string")),
             "Char" => {
@@ -38,6 +43,7 @@ impl Atom {
     fn text(&self) -> String {
         match self {
             Self::Int(n) => n.to_string(),
+            Self::Float(bits) => format!("{:?}", f64::from_bits(*bits)),
             Self::Bool(b) => b.to_string(),
             Self::Str(s) => serde_json::to_string(s).unwrap(),
             Self::Char(c) => match c {

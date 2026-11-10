@@ -105,6 +105,7 @@ fn type_catalogue_examples_define_user_types_and_use_existing_standard_types() {
         include_str!("../docs/reference/types.md"),
         &[
             ("", "42 Yes A abc 7\n"),
+            ("", "0.00125 Yes 0.001250\n-0 -inf Yes\n"),
             ("", "3 4 5 five 5\n1 Yes\n"),
             ("", "6 2 6 10\n"),
             ("", "2\n7\n"),

@@ -47,9 +47,12 @@ impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
     }
     fn negative_pattern(&mut self, arg: &g::NegativePattern<'t>) -> parol_runtime::Result<()> {
         if self.collect_layout {
-            self.layout
-                .negative_patterns
-                .insert(arg.int_literal.int_literal.location.start());
+            self.layout.negative_patterns.insert(
+                super::ast::number_literal(&arg.number_literal)
+                    .1
+                    .location
+                    .start(),
+            );
         }
         Ok(())
     }

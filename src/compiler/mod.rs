@@ -407,6 +407,19 @@ impl Compiler {
                     .map_err(|_| s.error("integer literal out of range"))?;
                 Literal::Int(v)
             }
+            "Float" => {
+                let v = text
+                    .parse::<f64>()
+                    .map_err(|_| s.error("invalid Float literal"))?;
+                let underflow = v == 0.0
+                    && text.split(['e', 'E']).next().is_some_and(|significand| {
+                        significand.bytes().any(|c| matches!(c, b'1'..=b'9'))
+                    });
+                if !v.is_finite() || underflow {
+                    return Err(s.error("Float literal out of range"));
+                }
+                Literal::Float(v.to_bits())
+            }
             "Str" => {
                 let v: String = serde_json::from_str(text).map_err(|e| s.error(e))?;
                 if !v.is_ascii() {

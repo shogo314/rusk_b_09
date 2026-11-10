@@ -32,7 +32,9 @@
 
 分割前の`6f0f302`と全examplesを比較しました。作業ディレクトリを変えて変換し、C++の420ケースと依存一覧の210ケースがバイト単位で一致しました。HIR・LIRの840ケースは標準ライブラリのソース位置を除いて一致し、展開後の標準宣言も位置を除いて同じ順序・内容でした。
 
-externの引数契約を通常・ジェネリックexternと呼び出し側の効果解析に接続しました。`rusk search`と`rusk doc`は同じ宣言情報を使い、文書サイトはソースから標準APIリファレンスを生成します。次は数値型の実装に進みます。 [externの引数契約](extern.md#extern-parameter-contracts)・[APIリファレンス](../library/api.md)
+externの引数契約を通常・ジェネリックexternと呼び出し側の効果解析に接続しました。`rusk search`と`rusk doc`は同じ宣言情報を使い、文書サイトはソースから標準APIリファレンスを生成します。 [externの引数契約](extern.md#extern-parameter-contracts)・[APIリファレンス](../library/api.md)
+
+数値型ではFloatを実装しました。64ビット浮動小数点のリテラル・四則演算・比較、明示変換、短い出力と固定小数点出力を提供します。 [Float](../reference/types.md#float)
 
 ## フォーマッタの作業
 

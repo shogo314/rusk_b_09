@@ -1173,7 +1173,7 @@ fn lambda(e: &g::Lambda<'_>) -> Result<Expr, String> {
 
 fn literal_expr(literal: &g::Literal<'_>) -> Expr {
     let (ty, t) = match literal {
-        g::Literal::IntLiteral(x) => ("Int", &x.int_literal.int_literal),
+        g::Literal::NumberLiteral(x) => number_literal(&x.number_literal),
         g::Literal::StringLiteral(x) => ("Str", &x.string_literal.string_literal),
         g::Literal::CharLiteral(x) => ("Char", &x.char_literal.char_literal),
         g::Literal::BoolLiteral(x) => (
@@ -1187,6 +1187,15 @@ fn literal_expr(literal: &g::Literal<'_>) -> Expr {
     Expr {
         kind: ExprKind::Literal(ty.into(), t.text().into()),
         span: Span::token(t),
+    }
+}
+
+pub(super) fn number_literal<'a, 't>(
+    literal: &'a g::NumberLiteral<'t>,
+) -> (&'static str, &'a Token<'t>) {
+    match literal {
+        g::NumberLiteral::IntLiteral(x) => ("Int", &x.int_literal.int_literal),
+        g::NumberLiteral::FloatLiteral(x) => ("Float", &x.float_literal.float_literal),
     }
 }
 
@@ -1233,9 +1242,9 @@ fn pattern_atom(p: &g::PatternAtom<'_>) -> Result<Pattern, String> {
             }
         }
         g::PatternAtom::NegativePattern(x) => {
-            let t = &x.negative_pattern.int_literal.int_literal;
+            let (ty, t) = number_literal(&x.negative_pattern.number_literal);
             Pattern {
-                kind: PatternKind::Literal("Int".into(), format!("-{}", t.text())),
+                kind: PatternKind::Literal(ty.into(), format!("-{}", t.text())),
                 span: Span::token(t),
             }
         }
