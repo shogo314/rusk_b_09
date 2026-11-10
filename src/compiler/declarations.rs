@@ -4,15 +4,16 @@ use super::*;
 impl Compiler {
     pub(super) fn register_declarations(&mut self, sources: &[Source]) -> Result<(), String> {
         generics::validate_type_declarations(sources)?;
-        self.register_types_and_generics(sources)?;
+        self.register_types(sources)?;
         self.register_enum_declarations(sources)?;
+        self.register_generic_functions(sources)?;
         self.validate_declared_types()?;
         self.register_concrete_declarations(sources)?;
         self.prepare_symbols()?;
         self.prepare_native_types()?;
         Ok(())
     }
-    fn register_types_and_generics(&mut self, sources: &[Source]) -> Result<(), String> {
+    fn register_generic_functions(&mut self, sources: &[Source]) -> Result<(), String> {
         for source in sources {
             for s in source {
                 if let Stmt::UserFunction(name, parameters, arguments, result, body) = s
@@ -30,9 +31,6 @@ impl Compiler {
                         calls: vec![],
                     })?;
                 }
-                if let Stmt::GenericExternType(name, parameters, properties) = s {
-                    self.register_extern_type(name, parameters, properties, source.origin)?;
-                }
                 if let Stmt::GenericExternFunction(
                     name,
                     parameters,
@@ -49,6 +47,16 @@ impl Compiler {
                         properties,
                         source.origin,
                     )?;
+                }
+            }
+        }
+        Ok(())
+    }
+    fn register_types(&mut self, sources: &[Source]) -> Result<(), String> {
+        for source in sources {
+            for s in source {
+                if let Stmt::GenericExternType(name, parameters, properties) = s {
+                    self.register_extern_type(name, parameters, properties, source.origin)?;
                 }
                 if let Stmt::Struct(name, parameters, fields) = s {
                     if !parameters.is_empty() {

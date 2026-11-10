@@ -194,10 +194,34 @@ impl Compiler {
             "__le__" => "tuple_le",
             "__gt__" => "tuple_gt",
             "__ge__" => "tuple_ge",
+            "__cmp__" => "tuple_cmp",
             _ => return Ok(None),
         };
+        if kind == "tuple_cmp" {
+            let fields = self.records[ty].fields.clone();
+            for (index, (_, field)) in fields.iter().enumerate() {
+                let value = Value {
+                    ty: field.text.clone(),
+                    id: ValueId::Probe,
+                };
+                if self
+                    .resolve_callable("__cmp__", &[value.clone(), value], Some("Ordering"), span)?
+                    .is_none()
+                {
+                    return Err(span.error(format!(
+                        "tuple field {index} of type '{}' has no total order '<=>'",
+                        field.text
+                    )));
+                }
+            }
+        }
+        let result = if kind == "tuple_cmp" {
+            "Ordering"
+        } else {
+            "Bool"
+        };
         let index =
-            self.native_function(name, vec![ty.into(); 2], "Bool", |_| String::new(), span)?;
+            self.native_function(name, vec![ty.into(); 2], result, |_| String::new(), span)?;
         self.native_derivation_tasks
             .insert(index, (kind.into(), ty.into()));
         Ok(Some(index))

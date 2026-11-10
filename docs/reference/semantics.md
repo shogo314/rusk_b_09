@@ -197,6 +197,7 @@ wt twice(2), twice::<Int>(2), twice("ab"); // 102 4 abab
 | `a == b`、`a != b` | `__eq__`、`__ne__` | `(T, T) -> Bool` |
 | `a < b`、`a <= b` | `__lt__`、`__le__` | `(T, T) -> Bool` |
 | `a > b`、`a >= b` | `__gt__`、`__ge__` | `(T, T) -> Bool` |
+| `a <=> b` | `__cmp__` | `(T, T) -> Ordering` |
 | 条件・短絡論理の真偽変換 | `__bool__` | `(T) -> Bool` |
 | `!a` | `__not__` | `(T) -> Bool` |
 | `a = b` | `__assign__` | `(T, T) -> Unit` |

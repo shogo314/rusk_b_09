@@ -45,3 +45,9 @@ inline std::int64_t rusk_float_to_int(double value, Loc loc) {
     if (!(value >= -0x1p63 && value < 0x1p63)) fail(loc, "Float cannot be converted to Int");
     return static_cast<std::int64_t>(value);
 }
+
+inline std::uint64_t rusk_float_order_key(double value) {
+    const std::uint64_t sign = UINT64_C(1) << 63;
+    std::uint64_t bits = std::bit_cast<std::uint64_t>(value);
+    return (bits & sign) ? ~bits : (bits ^ sign);
+}

@@ -4,8 +4,8 @@ struct Row {
 fn __eq__(a: Row, b: Row) -> Bool {
     return a.key == b.key;
 }
-fn __lt__(a: Row, b: Row) -> Bool {
-    return a.key < b.key;
+fn __cmp__(a: Row, b: Row) -> Ordering {
+    return a.key <=> b.key;
 }
 fn compare(readonly noescape a: (Row, Row), readonly noescape b: (Row, Row)) -> Bool {
     return a < b;

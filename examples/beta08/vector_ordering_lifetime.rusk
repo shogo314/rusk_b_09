@@ -3,9 +3,9 @@ struct Letter {
     id: Int;
     calls: Vec<Int>;
 }
-fn __lt__(a: Letter, b: Letter) -> Bool {
+fn __cmp__(a: Letter, b: Letter) -> Ordering {
     a.calls[0] += 1;
-    return a.key < b.key;
+    return a.key <=> b.key;
 }
 fn __eq__(a: Letter, b: Letter) -> Bool {
     a.calls[0] += 1;

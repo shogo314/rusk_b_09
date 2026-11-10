@@ -441,6 +441,32 @@ impl Compiler {
                 );
             }
         }
+        if results.is_empty()
+            && super::ordering::fallback(name).is_some()
+            && self
+                .signature_result("__cmp__", arguments, depth + 1, budget)?
+                .as_deref()
+                == Some("Ordering")
+        {
+            return Ok(Some("Bool".into()));
+        }
+        if results.is_empty()
+            && name == "__cmp__"
+            && let [left, right] = arguments
+            && left == right
+            && let Some(("Tuple", fields)) = type_parts(left)
+        {
+            for field in fields {
+                if self
+                    .signature_result("__cmp__", &[field.into(), field.into()], depth + 1, budget)?
+                    .as_deref()
+                    != Some("Ordering")
+                {
+                    return Ok(None);
+                }
+            }
+            return Ok(Some("Ordering".into()));
+        }
         Ok((results.len() == 1).then(|| results[0].clone()))
     }
 

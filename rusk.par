@@ -76,7 +76,7 @@ StatementUnary: UnaryOp Unary | StatementPower;
 StatementPower: StatementPostfix [ PowerTail ];
 StatementPostfix: NonBlockPrimary { Suffix };
 Binary: Unary { BinaryOp Unary };
-BinaryOp: '??' | '..' | '||' | '&&' | '|' | '^' | '&' | '==' | '!=' | LeftAngleOp | '<=' | RightAngleOp | '>=' | '<?' | '>?' | '+' | '-' | '*' | '/' | '%';
+BinaryOp: '??' | '..' | '||' | '&&' | '|' | '^' | '&' | '==' | '!=' | LeftAngleOp | '<=' | RightAngleOp | '>=' | '<=>' | '<?' | '>?' | '+' | '-' | '*' | '/' | '%';
 LeftAngleOp: '<' [ '<' ];
 RightAngleOp: '>' [ '>' ];
 AssignOp: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '<?=' | '>?=';

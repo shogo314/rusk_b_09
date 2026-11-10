@@ -8,7 +8,7 @@ fn vector_search_and_sort_use_element_operations_stability_and_sharing() {
     let case = Case::new(
         r#"
 struct Row{key:Int;id:Int;visits:Vec<Int>;}
-fn __lt__(a:Row,b:Row)->Bool{a.visits[0]+=1;return a.key<b.key;}
+fn __cmp__(a:Row,b:Row)->Ordering{a.visits[0]+=1;return a.key<=>b.key;}
 fn __eq__(a:Row,b:Row)->Bool{a.visits[0]+=1;return a.key==b.key;}
 let visits:=[0];
 let rows:=[Row{key:1,id:0,visits:visits},Row{key:0,id:1,visits:visits},Row{key:1,id:2,visits:visits}];
@@ -36,7 +36,7 @@ view[0]=9;wt values;sort(values);wt values;
     }
     for source in [
         "let values:Vec<Int>:=[];let cursor:=values.map((x:Int)=>x);wt \"before\";sort(values);wt cursor.to_vec();",
-        "struct Row{key:Int;visits:Vec<Int>;} fn __lt__(a:Row,b:Row)->Bool{a.visits[0]+=1;return a.key<b.key;} let visits:=[0];let values:=[Row{key:2,visits:visits},Row{key:1,visits:visits}];let cursor:=values.map((x:Row)=>x.key);wt \"before\";sort(values);wt cursor.to_vec();",
+        "struct Row{key:Int;visits:Vec<Int>;} fn __cmp__(a:Row,b:Row)->Ordering{a.visits[0]+=1;return a.key<=>b.key;} let visits:=[0];let values:=[Row{key:2,visits:visits},Row{key:1,visits:visits}];let cursor:=values.map((x:Row)=>x.key);wt \"before\";sort(values);wt cursor.to_vec();",
     ] {
         for options in [vec![], vec!["--no-opt"]] {
             let out = Case::new(source).run_with_options("", &options);
@@ -57,6 +57,7 @@ extern fn watch(a:Vec<Vec<Int>>) {cpp_name:"watch",code:"void watch(Obj<RuskVec<
 extern fn inner()->Vec<Int>{cpp_name:"inner",code:"Obj<RuskVec<std::int64_t>> inner(Loc){return Obj<RuskVec<std::int64_t>>(new RuskVec<std::int64_t>{},[](auto* p){delete p;if(watched){watched->clear();++watched->version;}});}",}
 extern fn __eq__(a:Vec<Int>,b:Vec<Int>)->Bool {cpp_name:"equal",code:"Obj<bool> equal(Obj<RuskVec<std::int64_t>> a,Obj<RuskVec<std::int64_t>> b,Loc){ACTION}",}
 extern fn __lt__(a:Vec<Int>,b:Vec<Int>)->Bool {cpp_name:"less",code:"Obj<bool> less(Obj<RuskVec<std::int64_t>> a,Obj<RuskVec<std::int64_t>> b,Loc){ACTION}",}
+fn __cmp__(a:Vec<Int>,b:Vec<Int>)->Ordering { __lt__(a,b); return Ordering::Equal; }
 "#;
     let mut cases = vec![];
     for action in [
@@ -250,6 +251,7 @@ fn vector_operations_are_generic_declarations_with_independent_names() {
         "__le__",
         "__gt__",
         "__ge__",
+        "__cmp__",
         "contains",
         "bisect_left",
         "bisect_right",
@@ -308,6 +310,11 @@ extern fn copy(x:Key)->Key {cpp_name:"watch_key_copy",code:"Obj<std::int64_t> wa
 extern fn __lt__(a:Key,b:Key)->Bool {
     cpp_name:"watch_key_less",code:"Obj<bool> watch_key_less(Obj<std::int64_t> a,Obj<std::int64_t> b,Loc){COMPARE_CHANGE return make_obj<bool>(*a<*b);}",
 }
+fn __cmp__(a:Key,b:Key)->Ordering {
+    if a < b {return Ordering::Less;}
+    if b < a {return Ordering::Greater;}
+    return Ordering::Equal;
+}
 let values:=VALUES;wt "before";sort_by_key(values,(x:Int)=>make_key(values,x));
 "#;
     let change = "watched->clear();++watched->version;";
@@ -358,7 +365,7 @@ let shared:=[0];let visits:=0;
 order_keys(values,(x:Row)=>{{visits+=1;shared[0]=x.key;shared}});
 for value in values{{wt value.id;}}wt visits;
 struct Key{{value:Int;}}
-fn __lt__(a:Key,b:Key)->Bool{{return a.value<b.value;}}
+fn __cmp__(a:Key,b:Key)->Ordering{{return a.value<=>b.value;}}
 order_keys(values,(x:Row)=>Key{{value:-x.key}});
 for value in values{{wt value.id;}}
 let tuples:=[(1,2),(0,4),(1,0)];order_keys(tuples,(x:(Int,Int))=>x);wt tuples;

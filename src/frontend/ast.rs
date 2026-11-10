@@ -992,6 +992,7 @@ fn binary_op(op: &g::BinaryOp<'_>) -> (String, Span) {
             return (spelling.into(), Span::token(&op.g_t));
         }
         g::BinaryOp::GTEqu(x) => &x.g_t_equ,
+        g::BinaryOp::LTEquGT(x) => &x.l_t_equ_g_t,
         g::BinaryOp::LTQuest(x) => &x.l_t_quest,
         g::BinaryOp::GTQuest(x) => &x.g_t_quest,
         g::BinaryOp::Plus(x) => &x.plus,
@@ -1012,10 +1013,11 @@ fn precedence(op: &str) -> u8 {
         "^" => 6,
         "&" => 7,
         "==" | "!=" | "<" | "<=" | ">" | ">=" => 8,
-        "<?" | ">?" => 9,
-        "<<" | ">>" => 10,
-        "+" | "-" => 11,
-        "*" | "/" | "%" => 12,
+        "<=>" => 9,
+        "<?" | ">?" => 10,
+        "<<" | ">>" => 11,
+        "+" | "-" => 12,
+        "*" | "/" | "%" => 13,
         _ => unreachable!(),
     }
 }
@@ -1033,12 +1035,16 @@ fn binary(first: Expr, rest: Vec<((String, Span), Expr)>) -> Result<Expr, String
         ops: &mut std::iter::Peekable<impl Iterator<Item = (String, Span)>>,
     ) -> Result<Expr, String> {
         let mut left = left;
+        let mut ordered = false;
         while let Some((op, _)) = ops.peek() {
             let p = precedence(op);
             if p < minimum {
                 break;
             }
             let (op, span) = ops.next().unwrap();
+            if op == "<=>" && std::mem::replace(&mut ordered, true) {
+                return Err(span.error("'<=>' cannot be chained without parentheses"));
+            }
             let right = parse(
                 values.next().unwrap(),
                 if op == "??" { p } else { p + 1 },

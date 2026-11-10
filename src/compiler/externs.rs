@@ -258,8 +258,19 @@ impl Compiler {
             let output = kind == "tuple_write";
             let comparison = matches!(
                 kind.as_str(),
-                "tuple_eq" | "tuple_ne" | "tuple_lt" | "tuple_le" | "tuple_gt" | "tuple_ge"
+                "tuple_eq"
+                    | "tuple_ne"
+                    | "tuple_lt"
+                    | "tuple_le"
+                    | "tuple_gt"
+                    | "tuple_ge"
+                    | "tuple_cmp"
             );
+            let comparison_result = if kind == "tuple_cmp" {
+                "Ordering"
+            } else {
+                "Bool"
+            };
             let vector_input = kind == "vector_read";
             let input = kind == "tuple_read" || vector_input;
             let valid_kind = assignment
@@ -288,7 +299,7 @@ impl Compiler {
                     } else {
                         r.text
                             != if comparison {
-                                "Bool"
+                                comparison_result
                             } else if assignment || output {
                                 "Unit"
                             } else {
@@ -297,7 +308,7 @@ impl Compiler {
                     }
                 })
                 || ((assignment || output) && parameters[0].text == "Unit")
-                || (comparison && parameters[0].text == "Bool")
+                || (comparison && parameters[0].text == comparison_result)
                 || properties.keys().any(|key| {
                     !matches!(key.as_str(), "code" | "derive")
                         && !((output || comparison)
@@ -313,6 +324,8 @@ impl Compiler {
             {
                 return Err(name.span.error(if assignment {
                     "invalid native assignment derivation; expected one type parameter and (T,T)->Unit"
+                }else if kind == "tuple_cmp" {
+                    "invalid native total comparison derivation; expected one type parameter and (T,T)->Ordering"
                 }else if comparison {
                     "invalid native comparison derivation; expected one type parameter and (T,T)->Bool"
                 }else if output {
@@ -456,7 +469,13 @@ impl Compiler {
         if !template::valid_type(ty) {
             return Err(span.error("invalid native type reference"));
         }
-        if parameters.iter().any(|p| p.text == ty) || self.types.contains_key(ty) {
+        if parameters.iter().any(|p| p.text == ty)
+            || self.types.contains_key(ty)
+            || self
+                .enum_definitions
+                .get(ty)
+                .is_some_and(|d| d.parameters.is_empty())
+        {
             return Ok(());
         }
         let Some((base, args)) = tuples::type_parts(ty) else {

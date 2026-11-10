@@ -22,6 +22,7 @@ mod input;
 mod ir_types;
 mod native_functions;
 mod native_info;
+mod ordering;
 mod patterns;
 mod pipeline;
 mod records;
@@ -328,6 +329,14 @@ impl Compiler {
         span: &Span,
     ) -> Result<Option<usize>, String> {
         if let Some(id) = self.resolve(name, args, expected, span)? {
+            if name == "__cmp__" {
+                self.same("Ordering", &self.functions[id].result, span)?;
+            } else if ordering::fallback(name).is_some() {
+                self.same("Bool", &self.functions[id].result, span)?;
+            }
+            return Ok(Some(id));
+        }
+        if let Some(id) = self.resolve_ordering_fallback(name, args, span)? {
             return Ok(Some(id));
         }
         if args.len() == 2
@@ -1275,6 +1284,7 @@ fn binary_name(op: &str) -> &str {
         "<=" => "__le__",
         ">" => "__gt__",
         ">=" => "__ge__",
+        "<=>" => "__cmp__",
         _ => unreachable!(),
     }
 }

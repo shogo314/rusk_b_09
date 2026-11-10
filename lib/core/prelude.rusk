@@ -6,6 +6,7 @@ include "int128.rusk";
 include "numeric_ops.rusk";
 include "../io/input.rusk";
 include "comparison.rusk";
+include "ordering.rusk";
 include "../iter/range.rusk";
 include "logic.rusk";
 include "conversion.rusk";

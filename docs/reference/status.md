@@ -8,7 +8,7 @@
 |---|---|
 | 基本値 | 符号付き64ビット`Int`・128ビット`Int128`、64ビット`Float`、`Bool`、ASCIIの`Char`・`Str`、`Unit` |
 | 変数 | 型推論・型注釈、共有・コピー、更新と結び直し、スコープ、[readonly/mutable](access.md)、初期化前の使用検査、[fixed/rebindable](bindings.md) |
-| 演算 | 検査付き整数演算、IEEE 754の四則演算、累乗、ビット演算・シフト、比較の連鎖、短絡論理、最小・最大と更新 |
+| 演算 | 検査付き整数演算、IEEE 754の四則演算、累乗、ビット演算・シフト、全順序`<=>`、比較の連鎖、短絡論理、最小・最大と更新 |
 | 制御 | if文・式、ブロック式、for・while・loop、ループelse、ラベル付きbreak・continue |
 | 型 | 配列、タプル、構造体、型引数、payload付きenum、Option |
 | パターン | 入れ子、リテラル、構造体、or、ガード、match文・式、if let・while let |
