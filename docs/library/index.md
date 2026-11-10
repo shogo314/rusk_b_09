@@ -6,6 +6,8 @@
 
 ## APIを探す
 
+組み込み標準ライブラリの署名と説明を確認できます。手元では`rusk search sort`のように検索できます。 [APIリファレンス](api.md)・[コマンドライン](../getting-started/cli.md#library-search)
+
 | 目的 | ページ |
 |---|---|
 | トークン・配列・タプル入力、EOF、行入力、出力形式 | [入出力](input-output.md) |

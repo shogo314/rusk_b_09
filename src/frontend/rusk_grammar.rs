@@ -94,10 +94,17 @@ impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
         Ok(())
     }
     fn extern_type(&mut self, arg: &g::ExternType<'t>) -> parol_runtime::Result<()> {
-        if let g::TypeName::NamedType(n) = arg.type_name.as_ref() {
-            self.declaration("extern type", &n.named_type.identifier);
-        }
+        self.declaration("extern type", first_type_identifier(&arg.type_name));
         Ok(())
+    }
+}
+
+fn first_type_identifier<'a, 't>(mut ty: &'a g::TypeName<'t>) -> &'a g::Identifier<'t> {
+    loop {
+        match ty {
+            g::TypeName::NamedType(named) => return &named.named_type.identifier,
+            g::TypeName::TupleType(tuple) => ty = &tuple.tuple_type.type_name,
+        }
     }
 }
 
@@ -108,6 +115,8 @@ impl RuskGrammar<'_> {
                 kind,
                 name: name.identifier.text().to_string(),
                 name_offset: name.identifier.location.start(),
+                line: name.identifier.location.start_line,
+                column: name.identifier.location.start_column,
             });
         }
     }

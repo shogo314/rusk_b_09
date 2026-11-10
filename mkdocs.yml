@@ -42,6 +42,7 @@ nav:
       - エラーと制限: reference/errors.md
   - ライブラリ:
       - 標準ライブラリ: library/index.md
+      - APIリファレンス: library/api.md
       - 入出力: library/input-output.md
       - 配列と文字列: library/sequences.md
       - 辞書・集合と不在を返す操作: library/collections.md
@@ -71,3 +72,8 @@ markdown_extensions:
   - admonition
   - fenced_code
   - tables
+hooks:
+  - tools/mkdocs_api.py
+watch:
+  - lib
+  - src

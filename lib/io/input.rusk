@@ -1,3 +1,5 @@
+//! 標準入力からASCII文字列などを読み取ります。
+
 extern fn __read__() -> Int {
     lower: "rusk_read_int($loc)",
     effects: "io_read_fresh",
@@ -17,6 +19,7 @@ extern fn __read__() -> Char {
     code: "inline Obj<char> read_Char(Loc loc) {\n    while (ascii_space(rusk_peek())) rusk_get();\n    int c = rusk_get();\n    if (c == std::char_traits<char>::eof()) fail(loc, \"unexpected end of input\");\n    if (c > 127) fail(loc, \"non-ASCII input\");\n    return make_obj<char>(static_cast<char>(c));\n}",
 }
 
+/// 標準入力の現在位置から行末までを読み取ります。改行は結果に含まず、読み始めに入力が尽きていれば実行時エラーです。
 extern fn read_line() -> Str {
     effects: "io_read_fresh",
     cpp_name: "read_line_Str",

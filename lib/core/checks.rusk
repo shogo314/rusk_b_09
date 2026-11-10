@@ -1,3 +1,6 @@
+//! 実行時の条件の検査です。
+
+/// 条件が偽なら実行時エラーにします。
 extern fn assert(condition: Bool) {
     effects: "checked_read_fresh",
     cpp_name: "rusk_assert",

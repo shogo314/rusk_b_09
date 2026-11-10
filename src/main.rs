@@ -1,4 +1,5 @@
 mod analysis;
+mod api;
 mod backend;
 mod cli;
 mod compiler;
@@ -19,6 +20,8 @@ fn run(command: Command) -> Result<(), String> {
     match command {
         Command::Compile(args) => compile(args),
         Command::Fmt(args) => format::run(args),
+        Command::Search(args) => api::search(args),
+        Command::Doc(args) => api::doc(args),
         Command::Dependencies { file } => {
             let dependencies = {
                 let _stage = enter(Stage::SourceLoading);

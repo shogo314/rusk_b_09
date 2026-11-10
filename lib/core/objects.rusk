@@ -1,3 +1,6 @@
+//! 基本型のコピー・代入・出力の宣言です。
+
+/// 同じ整数を持つ独立した値を作ります。
 extern fn copy(x: Int) -> Int {
     lower: "*$0",
     effects: "read_fresh",
@@ -20,6 +23,7 @@ extern fn __write__(x: Int) {
     code: "inline void write_Int(Obj<std::int64_t> x, Loc) { rusk_write(*x); }",
 }
 
+/// 同じ真偽値を持つ独立した値を作ります。
 extern fn copy(x: Bool) -> Bool {
     lower: "*$0",
     effects: "read_fresh",
@@ -42,6 +46,7 @@ extern fn __write__(x: Bool) {
     code: "inline void write_Bool(Obj<bool> x, Loc) { rusk_write(*x); }",
 }
 
+/// 同じ文字を持つ独立した値を作ります。
 extern fn copy(x: Char) -> Char {
     lower: "*$0",
     effects: "read_fresh",
@@ -64,6 +69,7 @@ extern fn __write__(x: Char) {
     code: "inline void write_Char(Obj<char> x, Loc) { rusk_write(*x); }",
 }
 
+/// 文字列の内容を独立した文字列にコピーします。
 extern fn copy(x: Str) -> Str {
     lower_owned: "make_obj<std::string>(*$0)",
     effects: "read_fresh",
@@ -84,6 +90,7 @@ extern fn __write__(x: Str) {
     code: "inline void write_Str(Obj<std::string> x, Loc) { rusk_write(*x); }",
 }
 
+/// `Unit` 値を返します。
 extern fn copy(x: Unit) -> Unit {
     lower_owned: "make_obj<Unit>(*$0)",
     return_abi: "object",

@@ -1,10 +1,15 @@
+//! 整数範囲とその走査状態です。
+
+/// `start..end` で作る、終端を含まない整数範囲です。
 extern type Range {
     cpp_name: "RuskRange",
 }
+/// 整数範囲の次の位置と終端を保持する走査状態です。
 extern type RangeIter {
     cpp_name: "RuskRangeIter",
     representation: "iterator<Int>",
 }
+/// 現在の位置と終端をコピーした範囲の走査状態を返します。
 extern fn copy(it: RangeIter) -> RangeIter {
     lower_owned: "make_obj<RuskRangeIter>(*$0)",
     effects: "read_fresh",

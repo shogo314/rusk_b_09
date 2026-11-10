@@ -53,3 +53,16 @@ pub(crate) fn parse(text: &str, file: &str) -> Result<Vec<ast::Stmt>, String> {
     let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Ast);
     ast::lower(&cst)
 }
+
+pub(crate) fn parse_documented(
+    text: &str,
+    file: &str,
+) -> Result<(Vec<ast::Stmt>, documentation::SourceDocumentation), String> {
+    let grammar = parse_grammar(text, file, true)?;
+    let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Ast);
+    let statements = ast::lower(&grammar.root.expect("successful parser must produce a root"))?;
+    Ok((
+        statements,
+        documentation::collect_at_positions(text, &grammar.layout),
+    ))
+}

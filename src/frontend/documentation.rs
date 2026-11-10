@@ -1,6 +1,7 @@
 //! Documentation comments are attached to syntactic declarations, not guesses
 //! based on line contents. Parsing, formatting and future API tools share this.
-use super::text::{CommentKind, Kind, LayoutHints, Token};
+use super::text::{CommentKind, Declaration, Kind, LayoutHints, Token};
+use std::collections::BTreeMap;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Documentation {
@@ -9,6 +10,38 @@ pub(crate) struct Documentation {
 }
 
 pub(crate) fn collect(source: &str, tokens: &[Token<'_>], hints: &LayoutHints) -> Documentation {
+    let (file, declarations) = collect_declarations(source, tokens, hints);
+    Documentation {
+        file,
+        declarations: declarations
+            .into_iter()
+            .map(|(decl, comment)| (decl.kind, decl.name.clone(), comment))
+            .collect(),
+    }
+}
+
+pub(crate) struct SourceDocumentation {
+    pub file: String,
+    pub declarations: BTreeMap<(u32, u32), String>,
+}
+
+pub(crate) fn collect_at_positions(source: &str, hints: &LayoutHints) -> SourceDocumentation {
+    let tokens = super::text::tokenize(source);
+    let (file, declarations) = collect_declarations(source, &tokens, hints);
+    SourceDocumentation {
+        file,
+        declarations: declarations
+            .into_iter()
+            .filter_map(|(decl, comment)| Some(((decl.line, decl.column), comment?)))
+            .collect(),
+    }
+}
+
+fn collect_declarations<'a>(
+    source: &str,
+    tokens: &[Token<'_>],
+    hints: &'a LayoutHints,
+) -> (String, Vec<(&'a Declaration, Option<String>)>) {
     let first_code = tokens
         .iter()
         .position(|t| matches!(t.kind, Kind::Terminal(_)))
@@ -31,8 +64,7 @@ pub(crate) fn collect(source: &str, tokens: &[Token<'_>], hints: &LayoutHints) -
         .into_iter()
         .map(|decl| {
             let name = tokens
-                .iter()
-                .position(|t| t.range.start == decl.name_offset)
+                .binary_search_by_key(&decl.name_offset, |token| token.range.start)
                 .expect("declaration name must be a token");
             let keyword = match decl.kind {
                 "function" => Some("fn"),
@@ -49,13 +81,10 @@ pub(crate) fn collect(source: &str, tokens: &[Token<'_>], hints: &LayoutHints) -
                     })
                     .expect("declaration must have its keyword")
             });
-            (decl.kind, decl.name.clone(), leading(source, tokens, start))
+            (decl, leading(source, tokens, start))
         })
         .collect();
-    Documentation {
-        file: file.join("\n"),
-        declarations,
-    }
+    (file.join("\n"), declarations)
 }
 
 fn leading(source: &str, tokens: &[Token<'_>], start: usize) -> Option<String> {

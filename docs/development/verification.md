@@ -58,7 +58,7 @@ RUSK_TEST_NO_OPT=1 cargo test --locked --test documentation
 | IR・効果・契約・診断経路 | `pipeline`、`effects`、`bindings`、`readonly`、`noescape`、各`*_routes`、`heap_aliases` |
 | 最適化の意味と確保数 | `optimization`、`effect_optimization` |
 | バッファ境界・EOF・不正入力 | `buffered_io` |
-| 文書から直接読む例 | `documentation`、`extern_generics` |
+| 文書から直接読む例 | `documentation`、`extern_generics`、`api` |
 
 ファイル名に残る版名は既存のテスト対象名です。現在の仕様を版ごとに分ける意味ではありません。内部の不正なIR・効果合成・具体化などは、対応するソースモジュールの単体テストでも検証します。
 
@@ -103,6 +103,6 @@ CIの`Test`ワークフローも共通入口を使い、公開ケースをキャ
 
 ## 文書例
 
-`tests/documentation.rs`は導入・チュートリアル・型の一覧・構造体・演算子・関数・捕捉・配列・アルゴリズム・データ構造の実行例と、fixed・readonly・noescapeの例を文書から直接読み取ります。契約の例では必要な呼び出しを補い、コメントの違反を有効にした拒否・診断の経路も検査します。`tests/extern_generics.rs`はexternの三つの実行例を読み取ります。
+`tests/documentation.rs`は導入・チュートリアル・型の一覧・構造体・演算子・関数・捕捉・配列・アルゴリズム・データ構造の実行例と、fixed・readonly・noescapeの例を文書から直接読み取ります。契約の例では必要な呼び出しを補い、コメントの違反を有効にした拒否・診断の経路も検査します。`tests/extern_generics.rs`はexternの実行例を読み取ります。`tests/api.rs`は標準ライブラリの文書コメントから実行例を抽出し、APIの署名、説明、定義リンクも検査します。
 
 すべての文書の構文断片を自動検証するものではありません。掲載例を変更した場合は、実行可能な例・断片・意図的な失敗のどれかを明らかにし、対応するテストも更新します。[文書の編集方針](documentation.md)を参照してください。

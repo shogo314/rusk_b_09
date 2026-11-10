@@ -32,17 +32,19 @@ python3 -m venv .venv-docs
 .venv-docs/bin/python -m mkdocs serve
 ```
 
-表示されたローカルURLを開きます。ページ追加時は`mkdocs.yml`のnavと関連ページへの相対リンクを更新します。履歴と互換案内ページは`not_in_nav`で主ナビゲーションの対象から外し、入口からたどれるようにします。`search.exclude`も指定し、古い説明を現在の仕様として検索させないようにします。
+表示されたローカルURLを開きます。ビルド時に`tools/mkdocs_api.py`がCargo経由で`rusk doc`を実行し、APIリファレンスを組み込みます。Rust stableが必要です。APIの説明を変更する場合は`lib/`の宣言と文書コメントを編集します。 [APIリファレンス](../library/api.md)
+
+ページ追加時は`mkdocs.yml`のnavと関連ページへの相対リンクを更新します。履歴と互換案内ページは`not_in_nav`で主ナビゲーションの対象から外し、入口からたどれるようにします。`search.exclude`も指定し、古い説明を現在の仕様として検索させないようにします。
 
 ```bash
 .venv-docs/bin/python -m mkdocs build --strict
-cargo test --locked --test documentation --test extern_generics
+cargo test --locked --test documentation --test extern_generics --test api
 ```
 
 生成先の`site/`と仮想環境はGitに含めません。仕様を変える場合は本文・文法・対応状況・例・設計方針を横断して更新し、実装済みになった項目を将来の未実装一覧に残さないようにします。
 
 ## 公開
 
-`.github/workflows/docs.yml`がmainへの文書関連のpushを受けてstrictビルドし、GitHub Pagesへ公開します。対象は`docs/**`、`mkdocs.yml`、`requirements-docs.txt`、公開ワークフロー自身です。プルリクエストではビルド検査だけを行います。手動実行による再公開も可能です。
+`.github/workflows/docs.yml`が文書、標準ライブラリ、処理系などの変更を受けてAPIの掲載例とstrictビルドを検証します。mainのビルド結果はGitHub Pagesへ公開します。生成したAPIからは、ビルド対象のコミットの定義行へリンクします。手動実行による再公開も可能です。
 
 GitHub PagesのSourceはGitHub Actionsに設定します。公開先は[Rusk](https://shogo314.github.io/rusk_b_09/)です。文書の編集・ローカルビルドと、mainへのpushによる公開は別の操作です。

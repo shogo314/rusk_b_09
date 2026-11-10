@@ -44,6 +44,8 @@ pub(crate) struct Declaration {
     pub kind: &'static str,
     pub name: String,
     pub name_offset: usize,
+    pub line: u32,
+    pub column: u32,
 }
 
 pub(crate) fn tokenize(text: &str) -> Vec<Token<'_>> {

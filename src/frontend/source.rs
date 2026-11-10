@@ -1,13 +1,19 @@
 use crate::frontend::ast::{Span, Stmt};
+use crate::frontend::documentation::SourceDocumentation;
 use std::{
     borrow::Cow,
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
 };
 
 pub struct Loaded {
     pub statements: Vec<Stmt>,
     pub dependencies: Vec<PathBuf>,
+}
+
+pub(crate) struct Documented {
+    pub statements: Vec<Stmt>,
+    pub files: BTreeMap<String, SourceDocumentation>,
 }
 
 enum Files<'a> {
@@ -55,6 +61,7 @@ struct Loader<'a> {
     loaded: BTreeSet<PathBuf>,
     active: Vec<PathBuf>,
     dependencies: BTreeSet<PathBuf>,
+    documentation: Option<BTreeMap<String, SourceDocumentation>>,
 }
 impl<'a> Loader<'a> {
     fn new(files: Files<'a>) -> Self {
@@ -63,6 +70,7 @@ impl<'a> Loader<'a> {
             loaded: BTreeSet::new(),
             active: vec![],
             dependencies: BTreeSet::new(),
+            documentation: None,
         }
     }
     fn expand(
@@ -97,14 +105,29 @@ impl<'a> Loader<'a> {
             .files
             .read(&canonical)
             .map_err(|e| error(format!("cannot read '{}': {e}", canonical.display())))?;
-        let statements = crate::frontend::parse(&text, &self.files.display(&canonical))?;
+        let display = if self.documentation.is_some()
+            && matches!(self.files, Files::Disk)
+            && canonical.to_str().is_none()
+        {
+            // Preserve distinct source identities even for non-UTF-8 paths.
+            format!("{canonical:?}")
+        } else {
+            self.files.display(&canonical)
+        };
+        let statements = if let Some(files) = &mut self.documentation {
+            let (statements, docs) = crate::frontend::parse_documented(&text, &display)?;
+            files.insert(display, docs);
+            statements
+        } else {
+            crate::frontend::parse(&text, &display)?
+        };
         self.active.push(canonical.clone());
         for statement in statements {
             match statement {
                 Stmt::Include(name, span) => {
                     self.expand(&canonical.parent().unwrap().join(name), Some(&span), output)?
                 }
-                Stmt::Symbol(name, mut properties) => {
+                Stmt::Symbol(name, mut properties) if self.documentation.is_none() => {
                     let file = properties.remove("code_file");
                     let files = properties.remove("code_files");
                     if file.is_some() && files.is_some() {
@@ -170,6 +193,18 @@ impl<'a> Loader<'a> {
             dependencies: self.dependencies.into_iter().collect(),
         })
     }
+
+    fn load_documented(mut self, path: &Path) -> Result<Documented, String> {
+        self.documentation = Some(BTreeMap::new());
+        let mut statements = vec![];
+        self.expand(path, None, &mut statements)?;
+        Ok(Documented {
+            statements,
+            files: self
+                .documentation
+                .expect("source documentation was enabled"),
+        })
+    }
 }
 
 pub fn load(path: &Path) -> Result<Loaded, String> {
@@ -177,6 +212,15 @@ pub fn load(path: &Path) -> Result<Loaded, String> {
 }
 pub(crate) fn embedded(root: &str, files: &[(&str, &str)]) -> Result<Loaded, String> {
     Loader::new(Files::Embedded(files)).load(Path::new(root))
+}
+pub(crate) fn documented(path: &Path) -> Result<Documented, String> {
+    Loader::new(Files::Disk).load_documented(path)
+}
+pub(crate) fn documented_embedded(
+    root: &str,
+    files: &[(&str, &str)],
+) -> Result<Documented, String> {
+    Loader::new(Files::Embedded(files)).load_documented(Path::new(root))
 }
 
 #[cfg(test)]

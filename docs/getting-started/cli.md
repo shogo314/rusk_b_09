@@ -6,10 +6,14 @@
 rusk compile [OPTIONS] FILE
 rusk dependencies FILE
 rusk fmt [--check | --write] FILE...
+rusk search QUERY [--file FILE] [--stdlib] [--all] [--json]
+rusk doc [--file FILE] [--stdlib] [--all] [--json | --source-url URL]
 rusk --help
 rusk compile --help
 rusk dependencies --help
 rusk fmt --help
+rusk search --help
+rusk doc --help
 rusk --version
 ```
 
@@ -43,7 +47,7 @@ rusk compile -o main.cpp -- -source.rusk
 
 | 終了コード | 意味 |
 |---|---|
-| `0` | 変換・整形・依存一覧の取得、またはヘルプ・バージョン表示の成功 |
+| `0` | 変換・整形・依存一覧・API検索・文書生成、またはヘルプ・バージョン表示の成功 |
 | `1` | ソースの構文・型検査、ファイルの読み書きなどの失敗、または`fmt --check`で整形の差を検出 |
 | `2` | 引数不足、不明なコマンド・オプション、不正な`--emit`の値など、コマンドラインの指定ミス |
 | `101` | 処理系のpanicによる終了。通常のビルドでのコードであり、abortやシグナルによる終了は別 |
@@ -55,6 +59,29 @@ panicが発生した場合は`Rusk internal compiler error`に続けて、パッ
 ## ソースを整形する
 
 `rusk fmt main.rusk`は標準出力へ整形結果を表示し、`--write`で入力ファイルを更新、`--check`で整形済みかを確認します。型検査とinclude先の読み込みは行いません。複数ファイルには`--check`か`--write`が必要です。規則と更新時の扱いは[ソースの整形](formatting.md)を参照してください。
+
+## ライブラリを検索する { #library-search }
+
+```bash
+rusk search sort
+rusk search "現在の走査位置"
+rusk search get --file library.rusk --stdlib --json
+```
+
+名前、署名、文書コメントを大文字小文字の区別なしで部分一致検索し、署名・説明の冒頭・定義位置を表示します。名前の完全一致、名前の前方一致、名前・署名の部分一致、説明の一致の順に並べます。同じ優先度では名前・署名・定義位置の順です。一致がなければ空の結果で正常終了します。
+
+既定の対象は組み込み標準ライブラリです。`--file`を指定すると、そのファイルと相対includeで読み込むRuskソースを対象にします。`--stdlib`を併記すると両方を検索します。`--all`で標準の言語フック、導出宣言、ランタイムsymbolも含めます。
+
+## APIリファレンスを生成する { #api-docs }
+
+```bash
+rusk doc > api.md
+rusk doc --file library.rusk --json > api.json
+```
+
+`doc`は検索と同じ宣言情報を、ソースファイル順にMarkdownで出力します。型・関数・extern・フィールド・variantを区別し、オーバーロードは個別に表示します。`--source-url`は標準ライブラリのソースリンクの基準URLです。`--json`は宣言の種類、署名、型引数、引数注釈、説明、定義位置、識別子を含む機械可読形式を出力します。`search --json`でも各検索結果は同じ形式です。
+
+いずれも構文とincludeを読み取ります。型検査、ジェネリックの具体化、C++資源の読み込みや実行は行いません。文書コメントの記法は[文書コメント](../development/doc-comments.md)を参照してください。
 
 ## 中間表現を調べる
 

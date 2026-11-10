@@ -10,6 +10,10 @@ pub(crate) fn load() -> Result<crate::compiler::Source, String> {
         crate::frontend::source::embedded("prelude.rusk", FILES)?.statements,
     ))
 }
+pub(crate) fn documented() -> Result<crate::frontend::source::Documented, String> {
+    let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::StandardLibrary);
+    crate::frontend::source::documented_embedded("prelude.rusk", FILES)
+}
 #[cfg(test)]
 pub(crate) fn runtime() -> Vec<crate::frontend::ast::Stmt> {
     crate::frontend::source::embedded("runtime/prelude.rusk", FILES)

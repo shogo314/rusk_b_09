@@ -21,12 +21,49 @@ pub(crate) enum Command {
     Compile(CompileArgs),
     /// Format Rusk source without type checking or following includes
     Fmt(FormatArgs),
+    /// Search API names, signatures, and documentation
+    Search(SearchArgs),
+    /// Generate an API reference from Rusk declarations
+    Doc(DocArgs),
     /// List the Rusk sources and C++ resources loaded by a program
     Dependencies {
         /// Rusk source file
         #[arg(value_name = "FILE")]
         file: PathBuf,
     },
+}
+
+#[derive(Args)]
+pub(crate) struct LibraryArgs {
+    /// Start with this file and its includes instead of the standard library
+    #[arg(long, value_name = "FILE")]
+    pub file: Option<PathBuf>,
+    /// Include the standard library alongside the specified file
+    #[arg(long, requires = "file")]
+    pub stdlib: bool,
+    /// Include the standard library's internal declarations
+    #[arg(long)]
+    pub all: bool,
+    /// Write the catalog as JSON
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Args)]
+pub(crate) struct SearchArgs {
+    /// Text to match, ignoring case
+    pub query: String,
+    #[command(flatten)]
+    pub library: LibraryArgs,
+}
+
+#[derive(Args)]
+pub(crate) struct DocArgs {
+    #[command(flatten)]
+    pub library: LibraryArgs,
+    /// Base URL for links to embedded library sources
+    #[arg(long, conflicts_with = "json", value_name = "URL")]
+    pub source_url: Option<String>,
 }
 
 #[derive(Args)]
