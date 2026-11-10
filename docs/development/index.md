@@ -32,7 +32,7 @@
 | `src/analysis/` | 束縛、効果、共有元、readonly/noescapeと診断経路 |
 | `src/native/` | externのABI、信頼契約、効果の合成、直接生成情報 |
 | `src/backend/` | LIRからC++、保持場所・所有・借用・値保持の選択 |
-| `src/stdlib/` | 埋め込み標準資源のカタログ |
+| `src/stdlib/`・`build.rs` | 標準資源の埋め込みと読込、ビルド時のカタログ生成 |
 | `lib/` | 標準のRusk宣言とC++ランタイム |
 | `tests/` | 外部の振る舞いを調べる統合テストと共通補助 |
 | `examples/` | 実例と公開問題の解答 |
@@ -43,16 +43,18 @@
 
 `lib/prelude.rusk`を共通のソースローダーで読み込みます。標準ライブラリも通常の宣言を登録し、利用者の関数と同じ候補解決・具体化を使います。
 
-| ファイル | 内容 |
+| 場所 | 内容 |
 |---|---|
-| `core.rusk` | 基本型、演算、入出力、基本のRusk関数 |
-| `collections.rusk` | Option、共通操作、構造展開を使う導出テンプレート |
-| `vec.rusk`・`hash_collections.rusk` | 配列、辞書、集合と反復型のジェネリックextern |
-| `lazy_iterators.rusk`・`algorithms.rusk` | 遅延反復、探索・集約・ソート |
-| `runtime.rusk` | C++資源と依存の宣言 |
-| `base.hpp`・`scalar.hpp` | 基本ABIとスカラーの一時値 |
-| `io.hpp`・`token_io.hpp` | バッファ入出力とトークン解析 |
-| `sequence_runtime.hpp`・`containers.hpp`・`lazy_iterators.hpp` | 共有コンテナ・enum補助・反復状態の実装 |
+| `lib/core/` | 基本型、コピー・代入・基本出力、整数演算、比較、論理、変換、検査 |
+| `lib/io/` | 基本型の入力と行の読み込み |
+| `lib/collections/` | Vec・Dict・Set・Str・Optionの型と操作、列の比較に使う共通操作 |
+| `lib/iter/` | Rangeとその走査、遅延map/filter |
+| `lib/derive/` | 集約型のコピー・代入、比較・入出力の導出テンプレート |
+| `lib/algorithms/` | 探索・走査を使う処理・集計・ソート |
+| `lib/runtime/prelude.rusk` | C++資源の指定とシンボルの依存宣言 |
+| `lib/runtime/*.hpp` | C++の基本ABI、入出力、スカラー、コンテナと反復状態 |
+
+`lib/prelude.rusk`と各`prelude.rusk`のinclude順が宣言の読込順です。ディレクトリは定義を探すための構成で、名前空間や公開範囲の境界にはなりません。ビルド時に`lib/`配下の`.rusk`と`.hpp`を相対パス付きで埋め込みます。カタログの並びは読込順を決めず、実行ファイルは作業ディレクトリに標準ライブラリの実ファイルを必要としません。
 
 ## 変更を確かめる
 

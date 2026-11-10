@@ -18,10 +18,13 @@ extern type Str {cpp_name:"std::string",}
 
 #[test]
 fn lowered_value_references_can_call_both_unit_abi_bridges() {
-    let core = crate::frontend::parse(include_str!("../../../lib/core.rusk"), "renamed-core.rusk")
-        .unwrap();
+    let core = crate::frontend::parse(
+        &crate::stdlib::test_source::source("core/prelude.rusk"),
+        "renamed-core.rusk",
+    )
+    .unwrap();
     let collections = crate::frontend::parse(
-        include_str!("../../../lib/collections.rusk"),
+        &crate::stdlib::test_source::source("collections/prelude.rusk"),
         "renamed-collections.rusk",
     )
     .unwrap();
@@ -51,7 +54,7 @@ extern fn via<T>(x:T)->Bool{
             Source::standard(collections.clone()),
             Source::standard(
                 crate::frontend::parse(
-                    include_str!("../../../lib/vec.rusk"),
+                    include_str!("../../../lib/collections/vec.rusk"),
                     "vector-declarations.rusk",
                 )
                 .unwrap(),
@@ -147,7 +150,7 @@ extern fn touch(x:Int){{cpp_name:"touch",code:"unused",effects:"write_first",}}
 extern fn copy(x:Int)->Int{{cpp_name:"copy_int",code:"unused",effects:"read_fresh",}}
 "#),"standard.rusk").unwrap());
     let derivations = Source::standard(
-            crate::frontend::parse(include_str!("../../../lib/collections.rusk"), "standard-derivations.rusk")
+            crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"), "standard-derivations.rusk")
                 .unwrap()
                 .into_iter()
                 .filter(|statement| matches!(statement, Stmt::GenericExternFunction(_,_,_,_,properties) if properties.get("derive").is_some_and(|kind| kind == "record_copy")))

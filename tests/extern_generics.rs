@@ -1,3 +1,5 @@
+#[path = "../src/stdlib/test_source.rs"]
+mod library;
 mod support;
 use support::Case;
 
@@ -1143,7 +1145,7 @@ fn native_field_expansions_have_depth_and_work_limits() {
 
 #[test]
 fn native_variants_copy_payloads_using_logical_operations_under_an_unrelated_name() {
-    let source = include_str!("../lib/collections.rusk");
+    let source = library::source("collections/prelude.rusk");
     let start = source.find("extern fn sum_copy_body<").unwrap();
     let end = source[start..]
         .find("// Standard Option operations")

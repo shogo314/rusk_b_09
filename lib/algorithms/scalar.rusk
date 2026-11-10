@@ -1,0 +1,21 @@
+fn min(a: Int, b: Int) -> Int {
+    return if b < a {
+        copy(b)
+    } else {
+        copy(a)
+    };
+}
+fn max(a: Int, b: Int) -> Int {
+    return if a < b {
+        copy(b)
+    } else {
+        copy(a)
+    };
+}
+fn abs(x: Int) -> Int {
+    return if x < 0 {
+        -x
+    } else {
+        copy(x)
+    };
+}

@@ -1,0 +1,10 @@
+extern fn sum(a: Vec<Int>) -> Int {
+    effects: "checked_read_fresh",
+    cpp_name: "convenience_6",
+    code: "Obj<std::int64_t> convenience_6(Obj<IntVec> a, [[maybe_unused]] Loc loc) { std::int64_t total=0; for(const auto& x:*a) total=checked_int(static_cast<__int128>(total)+*x,loc); return make_obj<std::int64_t>(total); }",
+}
+extern fn sum(a: Vec<Int>, initial: Int) -> Int {
+    effects: "checked_read_fresh",
+    cpp_name: "convenience_7",
+    code: "Obj<std::int64_t> convenience_7(Obj<IntVec> a, Obj<std::int64_t> initial, [[maybe_unused]] Loc loc) { std::int64_t total=*initial; for(const auto& x:*a) total=checked_int(static_cast<__int128>(total)+*x,loc); return make_obj<std::int64_t>(total); }",
+}

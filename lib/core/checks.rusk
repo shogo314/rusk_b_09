@@ -1,0 +1,5 @@
+extern fn assert(condition: Bool) {
+    effects: "checked_read_fresh",
+    cpp_name: "rusk_assert",
+    code: "void rusk_assert(Obj<bool> condition, Loc loc) { if (!*condition) fail(loc,\"assertion failed\"); }",
+}

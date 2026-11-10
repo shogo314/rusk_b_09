@@ -111,7 +111,7 @@ fn record_copy_derivations_validate_trust_shape_duplicates_and_unused_references
 }
 #[test]
 fn enum_copy_derivation_uses_source_provenance_and_a_name_independent_role() {
-    let mut declarations=crate::frontend::parse(include_str!("../../../lib/collections.rusk"),"other-library.rusk").unwrap().into_iter()
+    let mut declarations=crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"),"other-library.rusk").unwrap().into_iter()
             .filter(|s|matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|kind|kind == "enum_copy"))).collect::<Vec<_>>();
     for statement in &mut declarations {
         if let Stmt::GenericExternFunction(name, _, _, _, properties) = statement {
@@ -153,7 +153,7 @@ fn aggregate_assignment_roles_use_source_bodies_and_adapter_ordering() {
         ),
     ] {
         let mut declarations = crate::frontend::parse(
-                include_str!("../../../lib/collections.rusk"),
+                &crate::stdlib::test_source::source("collections/prelude.rusk"),
                 "other-library.rusk",
             )
             .unwrap()
@@ -291,7 +291,7 @@ fn tuple_input_derivations_validate_role_shape_and_source_trust() {
 #[test]
 fn tuple_input_role_uses_the_standard_template_with_an_unrelated_name() {
     let mut declarations = crate::frontend::parse(
-            include_str!("../../../lib/collections.rusk"),
+            &crate::stdlib::test_source::source("collections/prelude.rusk"),
             "renamed-library.rusk",
         )
         .unwrap()
@@ -395,7 +395,7 @@ fn dimensions_input_roles_validate_trust_and_bind_the_result_pattern() {
 
 #[test]
 fn dimensions_input_role_uses_the_source_body_under_an_unrelated_name() {
-    let mut declarations = crate::frontend::parse(include_str!("../../../lib/collections.rusk"), "other-standard.rusk")
+    let mut declarations = crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"), "other-standard.rusk")
             .unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v| v == "vector_read"))).collect::<Vec<_>>();
     for statement in &mut declarations {
         if let Stmt::GenericExternFunction(name, _, _, _, properties) = statement {
@@ -489,7 +489,7 @@ fn tuple_output_roles_validate_shape_trust_and_duplicate_definitions() {
 
 #[test]
 fn tuple_output_uses_named_source_templates_for_body_lowering_and_effects() {
-    let mut declarations=crate::frontend::parse(include_str!("../../../lib/collections.rusk"),"renamed-output-library.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_write"))).collect::<Vec<_>>();
+    let mut declarations=crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"),"renamed-output-library.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_write"))).collect::<Vec<_>>();
     for statement in &mut declarations {
         if let Stmt::GenericExternFunction(name, _, _, _, properties) = statement {
             name.text = "unrelated_output_name".into();
@@ -594,7 +594,7 @@ fn tuple_comparison_roles_validate_signatures_and_trust() {
 
 #[test]
 fn tuple_comparison_bodies_lowering_and_contracts_follow_source_roles() {
-    let mut declarations=crate::frontend::parse(include_str!("../../../lib/collections.rusk"),"renamed-compare-library.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_eq"))).collect::<Vec<_>>();
+    let mut declarations=crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"),"renamed-compare-library.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_eq"))).collect::<Vec<_>>();
     for statement in &mut declarations {
         if let Stmt::GenericExternFunction(name, _, _, _, properties) = statement {
             name.text = "unrelated_equal_name".into();
@@ -644,7 +644,7 @@ extern fn __eq__(a:Int,b:Int)->Bool{{cpp_name:"field_equal",code:"Obj<bool> fiel
 }
 #[test]
 fn tuple_predeclarations_follow_trusted_representations_instead_of_scalar_names() {
-    let mut declarations=crate::frontend::parse(include_str!("../../../lib/collections.rusk"),"renamed-policy.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_eq"))).collect::<Vec<_>>();
+    let mut declarations=crate::frontend::parse(&crate::stdlib::test_source::source("collections/prelude.rusk"),"renamed-policy.rusk").unwrap().into_iter().filter(|s| matches!(s,Stmt::GenericExternFunction(_,_,_,_,p) if p.get("derive").is_some_and(|v|v=="tuple_eq"))).collect::<Vec<_>>();
     for statement in &mut declarations {
         if let Stmt::GenericExternFunction(_, _, _, _, properties) = statement {
             properties

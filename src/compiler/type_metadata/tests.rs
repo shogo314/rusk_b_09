@@ -18,10 +18,13 @@ extern fn __assign__(x:Number,y:Number) {cpp_name:"store_number",code:"void stor
 extern fn __write__(x:Number) {cpp_name:"print_number",code:"void print_number(Obj<std::int64_t> x,Loc){rusk_write(*x);}",lower:"rusk_write(*$0)",effects:"io_write",}
 let x:=number(3);let alias:=x;alias=number(9);wt x;
 "#;
-    let core = crate::frontend::parse(include_str!("../../../lib/core.rusk"), "renamed-core.rusk")
-        .unwrap();
+    let core = crate::frontend::parse(
+        &crate::stdlib::test_source::source("core/prelude.rusk"),
+        "renamed-core.rusk",
+    )
+    .unwrap();
     let collections = crate::frontend::parse(
-        include_str!("../../../lib/collections.rusk"),
+        &crate::stdlib::test_source::source("collections/prelude.rusk"),
         "renamed-collections.rusk",
     )
     .unwrap();
@@ -41,7 +44,7 @@ let x:=number(3);let alias:=x;alias=number(9);wt x;
             Source::standard(collections.clone()),
             Source::standard(
                 crate::frontend::parse(
-                    include_str!("../../../lib/vec.rusk"),
+                    include_str!("../../../lib/collections/vec.rusk"),
                     "vector-declarations.rusk",
                 )
                 .unwrap(),
@@ -99,7 +102,7 @@ let x:=number(3);let alias:=x;alias=number(9);wt x;
                 Source::standard(collections),
                 Source::standard(
                     crate::frontend::parse(
-                        include_str!("../../../lib/vec.rusk"),
+                        include_str!("../../../lib/collections/vec.rusk"),
                         "vector-declarations.rusk",
                     )
                     .unwrap(),

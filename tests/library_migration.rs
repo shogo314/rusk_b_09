@@ -1,3 +1,5 @@
+#[path = "../src/stdlib/test_source.rs"]
+mod library;
 mod support;
 use support::Case;
 
@@ -205,7 +207,7 @@ extern fn __lt__(a:Vec<Int>,b:Vec<Int>)->Bool {cpp_name:"compare_less",code:"Obj
 #[test]
 fn vector_operations_are_generic_declarations_with_independent_names() {
     // User declarations cannot assert the standard library's effect/lowering contracts.
-    let source = include_str!("../lib/vec.rusk");
+    let source = include_str!("../lib/collections/vec.rusk");
     let mut declarations = source[source.find("extern fn").unwrap()..]
         .lines()
         .filter(|line| {
@@ -339,7 +341,7 @@ let values:=VALUES;wt "before";sort_by_key(values,(x:Int)=>make_key(values,x));
 
 #[test]
 fn key_sort_snapshots_keys_once_and_accepts_user_comparison_operations() {
-    let declarations = include_str!("../lib/algorithms.rusk")
+    let declarations = library::source("algorithms/prelude.rusk")
         .replace("fn first_true<", "fn boundary_search<")
         .replace("fn all<", "fn every_item<")
         .replace("fn any<", "fn some_item<")
@@ -375,7 +377,7 @@ let tuples:=[(1,2),(0,4),(1,0)];order_keys(tuples,(x:(Int,Int))=>x);wt tuples;
 
 #[test]
 fn binary_search_is_an_ordinary_declaration_and_works_under_an_unrelated_name() {
-    let declaration = include_str!("../lib/algorithms.rusk")
+    let declaration = library::source("algorithms/prelude.rusk")
         .replace("fn first_true<", "fn boundary_search<")
         .replace("fn all<", "fn every_item<")
         .replace("fn any<", "fn some_item<")
@@ -431,7 +433,7 @@ fn library_search_preserves_empty_interval_failures_and_prior_output() {
 
 #[test]
 fn predicates_use_user_defined_generic_iteration_without_container_name_dispatch() {
-    let declarations = include_str!("../lib/algorithms.rusk")
+    let declarations = library::source("algorithms/prelude.rusk")
         .replace("fn first_true<", "fn boundary_search<")
         .replace("fn all<", "fn every_item<")
         .replace("fn any<", "fn some_item<")
@@ -539,7 +541,7 @@ fn fold_return_preserves_empty_copies_shared_results_and_unit_cleanup() {
 
 #[test]
 fn comparator_sort_preserves_stability_and_is_available_as_a_user_declaration() {
-    let declarations = include_str!("../lib/algorithms.rusk")
+    let declarations = library::source("algorithms/prelude.rusk")
         .replace("fn first_true<", "fn boundary_search<")
         .replace("fn all<", "fn every_item<")
         .replace("fn any<", "fn some_item<")
@@ -837,7 +839,7 @@ let rows:=[risky(),2];watch(rows);wt "before";rows=[3,4];
 
 #[test]
 fn option_operations_and_constructors_are_independent_generic_declarations() {
-    let source = include_str!("../lib/collections.rusk");
+    let source = library::source("collections/prelude.rusk");
     let mut declarations = source[source.find("extern fn Some").unwrap()..]
         .lines()
         .filter(|line| {
@@ -1076,7 +1078,7 @@ wt counts(),rows.len(),match copied{Pair(x,n)=>n,Empty=>0,};
 
 #[test]
 fn aggregate_assignments_use_independent_declarations_and_preserve_identity() {
-    let library = include_str!("../lib/collections.rusk");
+    let library = library::source("collections/prelude.rusk");
     let start = library.find("extern fn aggregate_assign_body<").unwrap();
     let end = library[start..]
         .find("// Standard Option operations")
@@ -1234,7 +1236,7 @@ let value:=Choice::Value(original);match value{Value(x)=>{wt number(x.inner.valu
 
 #[test]
 fn product_readers_use_field_operations_under_independent_names() {
-    let library = include_str!("../lib/collections.rusk");
+    let library = library::source("collections/prelude.rusk");
     let start = library.find("extern fn product_read_body<").unwrap();
     let end = start
         + library[start..]
@@ -1445,7 +1447,7 @@ fn multidimensional_reader_validation_precedes_input_and_keeps_caller_locations(
 
 #[test]
 fn dimensions_template_works_as_an_unrelated_fixed_arity_user_extern() {
-    let source = include_str!("../lib/collections.rusk");
+    let source = library::source("collections/prelude.rusk");
     let start = source.find("extern fn dimensions_read_body<").unwrap();
     let end = source[start..]
         .find("// Language-generated record/")
@@ -1558,7 +1560,7 @@ text.push_back('!');wt text;
 
 #[test]
 fn tuple_output_template_works_as_an_unrelated_user_extern() {
-    let source = include_str!("../lib/collections.rusk");
+    let source = library::source("collections/prelude.rusk");
     let start = source.find("extern fn product_write_body<").unwrap();
     let end = source[start..]
         .find("// Preserve the fixed argument ABI")
@@ -1675,7 +1677,7 @@ check((Row{{value:1}},Row{{value:2}}),(Row{{value:3}},Row{{value:4}}));
 
 #[test]
 fn tuple_comparison_templates_are_usable_under_unrelated_user_names() {
-    let source = include_str!("../lib/collections.rusk");
+    let source = library::source("collections/prelude.rusk");
     let equal = source.find("extern fn product_equal_body<").unwrap();
     let less = source.find("extern fn product_less_body<").unwrap();
     let end = source.find("extern fn product_not_equal_body<").unwrap();
@@ -1732,7 +1734,7 @@ fn hash_collection_declarations_keep_context_defaults_copy_and_value_lifetimes()
 
 #[test]
 fn hash_collection_operations_work_with_unrelated_user_type_and_constructor_names() {
-    let declarations = include_str!("../lib/hash_collections.rusk")
+    let declarations = include_str!("../lib/collections/hash.rusk")
         .split("\n}\n")
         .filter(|part| !part.contains("extern fn hash_default_value<"))
         .collect::<Vec<_>>()
@@ -2116,7 +2118,7 @@ fn lazy_declarations_preserve_cached_values_captures_assignment_and_unit_inputs(
 
 #[test]
 fn lazy_algorithms_and_types_work_under_unrelated_user_names() {
-    let declarations = include_str!("../lib/lazy_iterators.rusk")
+    let declarations = include_str!("../lib/iter/lazy.rusk")
         .split("\n}\n")
         .filter(|part| !part.contains("extern symbol"))
         .collect::<Vec<_>>()

@@ -1,0 +1,26 @@
+// Primitive logical types and their C++ representations.
+
+extern type Int {
+    representation: "i64",
+    cpp_name: "std::int64_t",
+}
+
+extern type Bool {
+    representation: "bool",
+    cpp_name: "bool",
+}
+
+extern type Char {
+    representation: "char",
+    cpp_name: "char",
+}
+
+extern type Str {
+    representation: "buffer<Char>",
+    cpp_name: "std::string",
+}
+
+extern type Unit {
+    representation: "unit",
+    cpp_name: "Unit",
+}
