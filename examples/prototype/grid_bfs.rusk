@@ -2,7 +2,9 @@
 // Input: H W, then H ASCII rows ('.' = open, '#' = wall).
 // H,W >= 1. Output -1 when unreachable.
 fn shortest_path(grid: Vec<Str>, h: Int, w: Int) -> Int {
-    if grid[0][0] == '#' || grid[h-1][w-1] == '#' { return -1; }
+    if grid[0][0] == '#' || grid[h - 1][w - 1] == '#' {
+        return -1;
+    }
     let distance := [[-1; w]; h];
     let queue_r := [0];
     let queue_c := [0];
@@ -25,9 +27,12 @@ fn shortest_path(grid: Vec<Str>, h: Int, w: Int) -> Int {
             }
         }
     }
-    return distance[h-1][w-1];
+    return distance[h - 1][w - 1];
 }
 in h, w: Int;
 let grid: Vec<Str> := [];
-for r in 0..h { in row: Str; grid.push_back(row); }
+for r in 0 .. h {
+    in row: Str;
+    grid.push_back(row);
+}
 wt shortest_path(grid, h, w);

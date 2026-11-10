@@ -2,10 +2,12 @@
 // ITP1_3_B - Print Test Cases
 // https://onlinejudge.u-aizu.ac.jp/problems/ITP1_3_B
 // 番兵とループ
-let number:=1;
+let number := 1;
 loop {
-    in x:Int;
-    if x==0 { break; }
-    wt "Case "+Str(number)+": "+Str(x);
-    number+=1;
+    in x: Int;
+    if x == 0 {
+        break;
+    }
+    wt "Case " + Str(number) + ": " + Str(x);
+    number += 1;
 }

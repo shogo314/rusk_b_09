@@ -3,7 +3,7 @@
 in n, q: Int;
 in a(n): Vec<Int>;
 a.sort();
-for i in 0..q {
+for i in 0 .. q {
     in x: Int;
     wt a.bisect_right(x);
 }

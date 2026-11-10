@@ -2,6 +2,6 @@
 // ITP1_2_C - Sorting Three Numbers
 // https://onlinejudge.u-aizu.ac.jp/problems/ITP1_2_C
 // ソート
-in numbers(3):Vec<Int>;
+in numbers(3): Vec<Int>;
 numbers.sort();
 wt numbers;

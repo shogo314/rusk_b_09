@@ -2,5 +2,7 @@
 in n: Int;
 in a(n): Vec<Int>;
 let total := 0;
-for x in a { total += x; }
+for x in a {
+    total += x;
+}
 wt total;

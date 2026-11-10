@@ -6,12 +6,15 @@ struct Fenwick<T> {
 
 fn Fenwick<T>(n: Int, zero: T) -> Fenwick<T> {
     assert(n >= 0);
-    return Fenwick::<T> { tree: [zero; n+1], zero: copy(zero) };
+    return Fenwick::<T> {
+        tree: [zero; n + 1],
+        zero: copy(zero)
+    };
 }
 
 fn add<T>(fw: Fenwick<T>, position: Int, delta: T) {
-    assert(0 <= position && position+1 < fw.tree.len());
-    let index := position+1;
+    assert(0 <= position && position + 1 < fw.tree.len());
+    let index := position + 1;
     while index < fw.tree.len() {
         fw.tree[index] += delta;
         index += index & -index;
@@ -36,10 +39,14 @@ fn range_sum<T>(fw: Fenwick<T>, left: Int, right: Int) -> T {
 
 fn Fenwick<T>(values: Vec<T>, zero: T) -> Fenwick<T> {
     let fw := Fenwick(values.len(), zero);
-    for i in 0..values.len() { fw.tree[i+1] = values[i]; }
-    for index in 1..fw.tree.len() {
+    for i in 0 .. values.len() {
+        fw.tree[i + 1] = values[i];
+    }
+    for index in 1 .. fw.tree.len() {
         let parent := index + (index & -index);
-        if parent < fw.tree.len() { fw.tree[parent] += fw.tree[index]; }
+        if parent < fw.tree.len() {
+            fw.tree[parent] += fw.tree[index];
+        }
     }
     return fw;
 }

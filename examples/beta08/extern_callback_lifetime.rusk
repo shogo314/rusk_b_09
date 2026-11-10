@@ -1,12 +1,14 @@
 // An extern stores the environment; a returned character keeps its owner alive.
-extern fn apply0<F,R>(f:F)->R {
+extern fn apply0<F, R>(f: F) -> R {
     code: "@{return R} @{fn}(Obj<@{F}> f,Loc loc){return @{invoke F()->R}(f,loc);}",
 }
-extern type<F> Holder { cpp_name: "std::shared_ptr<{F}>", }
-extern fn keep<F>(f:F)->Holder<F> {
+extern type<F> Holder {
+    cpp_name: "std::shared_ptr<{F}>",
+}
+extern fn keep<F>(f: F) -> Holder<F> {
     code: "Obj<@{Holder<F>}> @{fn}(Obj<@{F}> f,Loc){return make_obj<@{Holder<F>}>(f);}",
 }
-extern fn take<F>(x:Holder<F>)->F {
+extern fn take<F>(x: Holder<F>) -> F {
     code: "Obj<@{F}> @{fn}(Obj<@{Holder<F>}> x,Loc){return *x;}",
 }
 let saved := {

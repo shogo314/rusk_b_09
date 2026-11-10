@@ -3,7 +3,9 @@
 // https://onlinejudge.u-aizu.ac.jp/problems/ITP1_3_C
 // 番兵とループ
 loop {
-    in x,y:Int;
-    if x==0 && y==0 { break; }
-    wt min(x,y),max(x,y);
+    in x, y: Int;
+    if x == 0 && y == 0 {
+        break;
+    }
+    wt min(x, y), max(x, y);
 }

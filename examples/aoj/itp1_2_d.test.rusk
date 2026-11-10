@@ -2,5 +2,5 @@
 // ITP1_2_D - Circle in a Rectangle
 // https://onlinejudge.u-aizu.ac.jp/problems/ITP1_2_D
 // 比較と論理演算
-in w,h,x,y,r:Int;
-wt r<=x && x+r<=w && r<=y && y+r<=h;
+in w, h, x, y, r: Int;
+wt r <= x && x + r <= w && r <= y && y + r <= h;

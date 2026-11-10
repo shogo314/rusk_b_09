@@ -2,5 +2,5 @@
 // ITP1_2_B - Range
 // https://onlinejudge.u-aizu.ac.jp/problems/ITP1_2_B
 // 比較と論理演算
-in a,b,c:Int;
-wt a<b && b<c;
+in a, b, c: Int;
+wt a < b && b < c;
