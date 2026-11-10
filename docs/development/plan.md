@@ -38,6 +38,8 @@ externの引数契約を通常・ジェネリックexternと呼び出し側の�
 
 累乗・シフト・ビット反転を標準の演算フックに接続しました。`<=>`と大小比較のフォールバックを実装し、既定の安定ソートとキー付きソートに全順序を使います。 [累乗とシフト](../reference/operators.md#powers-shifts)・[全順序](../reference/operators.md#total-order)
 
+`enumerate`・`zip`・`reversed`を既存の反復規約へ接続しました。 [走査のAPI](../library/algorithms.md#iteration-adapters)
+
 ## フォーマッタの作業
 
 | 順序 | 仕事 | 確認すること |

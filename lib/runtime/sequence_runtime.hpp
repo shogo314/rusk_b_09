@@ -32,10 +32,16 @@ inline std::unordered_map<const std::string*, std::size_t> string_borrows;
 inline void check_string_resize(const Obj<std::string>& s, Loc loc) {
     if (string_borrows.contains(s.get())) fail(loc,"string has active character references");
 }
+inline Obj<std::string> rusk_borrow_string(const Obj<std::string>& s) {
+    ++string_borrows[s.get()];
+    return Obj<std::string>(s.get(), [s](std::string*) {
+        auto it = string_borrows.find(s.get());
+        if (--it->second == 0) string_borrows.erase(it);
+    });
+}
 inline Obj<char> string_get(const Obj<std::string>& s, std::int64_t i, Loc loc) {
     auto position=checked_index(s->size(),i,loc);
-    ++string_borrows[s.get()];
-    return Obj<char>(&(*s)[position],[s](char*){ auto it=string_borrows.find(s.get()); if(--it->second==0) string_borrows.erase(it); });
+    return Obj<char>(rusk_borrow_string(s), &(*s)[position]);
 }
 inline char checked_char(__int128 value, Loc loc) {
     if(value<0 || value>127) fail(loc,"character out of ASCII range");

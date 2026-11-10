@@ -10,3 +10,7 @@ extern symbol __runtime_lazy_iterators__ {
     code_file: "lazy_iterators.hpp",
     depends: "__runtime_collections__",
 }
+extern symbol __runtime_iter_adapters__ {
+    code_file: "iter_adapters.hpp",
+    depends: "__runtime_lazy_iterators__",
+}

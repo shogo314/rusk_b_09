@@ -78,6 +78,10 @@ pub(crate) fn resolve(
                     .and_then(|fields| fields.iter().position(|(n, _)| n == name))
                     .map(Projection::Field)
             })
+            .or_else(|| {
+                (name == "element" && matches!(kind, Type::Vector(_) | Type::Buffer(_)))
+                    .then_some(Projection::Element)
+            })
             .ok_or("unknown native alias member")?;
         ty = crate::analysis::effects::project_type(&ty, std::slice::from_ref(&field), types)?;
         projections.push(field);

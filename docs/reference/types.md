@@ -134,15 +134,20 @@ Boolはfalseがtrueより先です。Floatの通常の比較ではNaNを扱う�
 | `Iter<Set<T>>` | 集合の`__iter__` | コピーしたキーを取り出す |
 | `Mapped<I,F,T,R>` | `map` | 型Iの反復と型Fの関数を保持し、TをRへ遅延変換する |
 | `Filtered<I,F,T>` | `filter` | 型Iの反復と型Fの関数を保持し、条件を満たすTを共有して通す |
+| `Enumerated<I,T>` | `enumerate` | 添字と共有要素をタプルで取り出す |
+| `Zipped<I,J,A,B>` | `zip` | 2列の反復を保持し、対応する要素をタプルで取り出す |
+| `ReverseVecIter<T>`・`ReverseStrIter`・`ReverseRangeIter` | `reversed` | 配列・文字列・範囲を末尾から走査する |
 
 | 値の型 | 標準のforの入力 | 標準のコピー |
 |---|---|---|
 | Range | 対応 | 提供しない。必要なら端点から範囲を作る |
-| RangeIter・Iter<Vec<T>> | 直接の入力には未対応 | 進行状態をコピー。配列の所有元は共有 |
+| RangeIter・Iter<Vec<T>> | 対応。現在の位置から走査 | 進行状態をコピー。配列の所有元は共有 |
 | Iter<Dict<K,V>>・Iter<Set<T>> | 対応。現在の位置から走査 | 進行状態をコピー。コンテナの所有元は共有 |
 | Mapped・Filtered | 対応。残りを走査 | 元の反復・関数・保持値のコピー操作が必要 |
+| Enumerated・Zipped | 対応。残りを走査 | 元の反復の進行状態をコピー |
+| ReverseVecIter・ReverseStrIter・ReverseRangeIter | 対応。残りを走査 | 進行状態をコピー。配列と文字列は共有 |
 
-forは入力に`__iter__`を呼びます。RangeIterとIter<Vec<T>>は、取得済みの状態を再びforへ渡す標準の`__iter__`を提供していません。低水準の`__iter_has_next__`・`__iter_next__`では操作できます。Strも直接のfor走査には対応せず、整数範囲と添字で走査します。これらの範囲・反復型に比較・入出力・真偽変換の標準操作はありません。
+forは入力に`__iter__`を呼びます。Strを先頭から走査する場合は、整数範囲と添字を使います。末尾からは`reversed(s)`で走査できます。 [走査のAPI](../library/algorithms.md#iteration-adapters)
 
 `I`は反復型、`F`は関数値の型、`T`は入力要素型、`R`は出力要素型です。`Iter`は上記の配列・辞書・集合に対応する型パターンが宣言されており、任意の`Iter<T>`が自動的に使えるわけではありません。
 
