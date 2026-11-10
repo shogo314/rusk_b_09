@@ -46,6 +46,18 @@ fn introduction_examples_match_the_published_input_and_output() {
 }
 
 #[test]
+fn formatting_and_documentation_comment_examples_are_runnable() {
+    runnable_examples(
+        include_str!("../docs/getting-started/formatting.md"),
+        &[("", "5\n")],
+    );
+    runnable_examples(
+        include_str!("../docs/development/doc-comments.md"),
+        &[("", "5\n")],
+    );
+}
+
+#[test]
 fn tutorial_examples_match_the_published_input_and_output() {
     runnable_examples(
         include_str!("../docs/getting-started/tutorial.md"),

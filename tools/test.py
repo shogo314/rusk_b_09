@@ -74,12 +74,13 @@ def main():
     try:
         if args.suite in ('all', 'local'):
             run_stage('Formatting', [['cargo', 'fmt', '--check']], results)
+            run_stage('Rusk formatting', [['cargo', 'build', '--locked'], [sys.executable, 'tools/check_format.py']], results)
             run_stage('Clippy', [['cargo', 'clippy', '--locked', '--all-targets', '--', '-D', 'warnings']], results)
             run_stage('Cargo tests (E2E + AtCoder)', [['cargo', 'test', '--locked']], results)
             reference_env = os.environ.copy()
             reference_env['RUSK_TEST_NO_OPT'] = '1'
             reference_command = ['cargo', 'test', '--locked']
-            for test in ('e2e', 'records', 'tuples', 'generics', 'extern_generics', 'extern_callbacks', 'library_migration', 'includes', 'data_structures', 'callables', 'higher_order', 'beta04_structures', 'beta05', 'pipeline', 'cli', 'blocks_labels', 'enums', 'test_support', 'beta06', 'minmax', 'effects', 'bindings', 'readonly', 'readonly_routes', 'documentation', 'noescape', 'noescape_routes', 'heap_aliases'):
+            for test in ('e2e', 'records', 'tuples', 'generics', 'extern_generics', 'extern_callbacks', 'library_migration', 'includes', 'data_structures', 'callables', 'higher_order', 'beta04_structures', 'beta05', 'pipeline', 'cli', 'format', 'blocks_labels', 'enums', 'test_support', 'beta06', 'minmax', 'effects', 'bindings', 'readonly', 'readonly_routes', 'documentation', 'noescape', 'noescape_routes', 'heap_aliases'):
                 reference_command += ['--test', test]
             run_stage('Reference backend (no scalar optimization)',
                       [reference_command], results, env=reference_env)

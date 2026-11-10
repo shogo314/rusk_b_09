@@ -20,6 +20,7 @@ nav:
       - 導入と実行: getting-started/index.md
       - 小さなプログラムで学ぶ: getting-started/tutorial.md
       - コマンドライン: getting-started/cli.md
+      - ソースの整形: getting-started/formatting.md
   - 言語リファレンス:
       - 基本構文と共有: reference/index.md
       - 型の一覧と対応する操作: reference/types.md
@@ -56,6 +57,7 @@ nav:
       - テストの実行: development/verification.md
       - 性能と最適化: development/performance.md
       - ドキュメントの編集と公開: development/documentation.md
+      - 文書コメント: development/doc-comments.md
       - 過去の開発記録: development/history.md
 not_in_nav: |
   /development/beta*.md

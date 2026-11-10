@@ -3,6 +3,7 @@ mod backend;
 mod cli;
 mod compiler;
 mod diagnostics;
+mod format;
 mod frontend;
 mod ir;
 mod native;
@@ -17,6 +18,7 @@ use std::io::Write;
 fn run(command: Command) -> Result<(), String> {
     match command {
         Command::Compile(args) => compile(args),
+        Command::Fmt(args) => format::run(args),
         Command::Dependencies { file } => {
             let dependencies = {
                 let _stage = enter(Stage::SourceLoading);
@@ -69,7 +71,11 @@ fn main() {
     diagnostics::install_panic_hook();
     let command = {
         let _stage = enter(Stage::Arguments);
-        Cli::parse().command
+        let command = Cli::parse().command;
+        if let Command::Fmt(args) = &command {
+            args.validate().unwrap_or_else(|error| error.exit());
+        }
+        command
     };
     if let Err(e) = run(command) {
         let _ = writeln!(std::io::stderr().lock(), "{e}");

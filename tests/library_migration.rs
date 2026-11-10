@@ -1456,7 +1456,10 @@ fn dimensions_template_works_as_an_unrelated_fixed_arity_user_extern() {
             "dimensions_read_body<T>()",
             "unrelated<T>(height:Int,width:Int)",
         )
-        .replace("derive:\"vector_read\",", "");
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("derive:"))
+        .collect::<Vec<_>>()
+        .join("\n");
     let case = Case::new(&format!("{declaration} wt unrelated::<Vec<Int>>(2,2);"));
     for options in [vec![], vec!["--no-opt"]] {
         let out = case.run_with_options("1 2 3 4", &options);

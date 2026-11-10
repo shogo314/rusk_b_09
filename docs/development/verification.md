@@ -13,6 +13,10 @@
 
 各段階の失敗後も、独立した段階は実行します。ビルドが失敗した場合は、依存する検証を止めて古い実行ファイルの検証を防ぎます。必須ツールがない段階も失敗になります。文書サイトのstrictビルドは[別の検証](documentation.md)です。
 
+整形検査はRustの`cargo fmt --check`と、`lib/`・`examples/`内のRuskソースの両方を対象にします。Ruskの整形チェックは`cargo build --locked`に続けて`python3 tools/check_format.py`を実行します。更新する場合は`python3 tools/check_format.py --write`を使います。
+
+フォーマッタの単体テストは標準ライブラリと全examplesで再整形の一致・位置情報を除いたASTの一致を確認します。文書コメントの所属も整形前後で比較します。`tests/format.rs`ではCLI・書き換え失敗時の保護・実行時の共有と評価順序を検証します。
+
 ## 環境を用意する
 
 Rust stable、Python 3.12以降、Git、GCCのC++20環境を使います。公開問題の検証ツールは次で用意します。
