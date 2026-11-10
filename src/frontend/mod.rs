@@ -19,6 +19,7 @@ pub(crate) fn parse_cst<'t>(
     text: &'t str,
     file: &str,
 ) -> Result<rusk_grammar_trait::Rusk<'t>, String> {
+    let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Parsing);
     let mut grammar = rusk_grammar::RuskGrammar::default();
     rusk_parser::parse(text, file, &mut grammar).map_err(|e| {
         if ErrorReporter::report_error(&e, file).is_err() {
@@ -31,5 +32,7 @@ pub(crate) fn parse_cst<'t>(
         .ok_or_else(|| format!("{file}: missing parse result"))
 }
 pub(crate) fn parse(text: &str, file: &str) -> Result<Vec<ast::Stmt>, String> {
-    ast::lower(&parse_cst(text, file)?)
+    let cst = parse_cst(text, file)?;
+    let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Ast);
+    ast::lower(&cst)
 }

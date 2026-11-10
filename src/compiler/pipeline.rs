@@ -106,6 +106,7 @@ impl Compiler {
         &self,
         hir: &mut crate::ir::hir::Program,
     ) -> Result<crate::ir::lir::Program, String> {
+        use crate::diagnostics::{Stage, enter};
         let conditional = self
             .native_info
             .iter()
@@ -120,20 +121,50 @@ impl Compiler {
             hir.functions[id].effects =
                 crate::analysis::effects::Summary::unanalyzed(hir.functions[id].params.len());
         }
-        hir.validate()?;
-        let mut lir = crate::ir::lir::lower_program(hir);
-        lir.validate()?;
-        self.resolve_effects(hir, &mut lir, conditional)?;
-        hir.validate()?;
-        lir.validate()?;
-        crate::analysis::effects::validate_noescape(&lir)?;
-        let access = crate::analysis::readonly::analyze(&lir)?;
+        {
+            let _stage = enter(Stage::HirValidation);
+            hir.validate()?;
+        }
+        let mut lir = {
+            let _stage = enter(Stage::Lir);
+            crate::ir::lir::lower_program(hir)
+        };
+        {
+            let _stage = enter(Stage::LirValidation);
+            lir.validate()?;
+        }
+        {
+            let _stage = enter(Stage::Effects);
+            self.resolve_effects(hir, &mut lir, conditional)?;
+        }
+        {
+            let _stage = enter(Stage::HirValidation);
+            hir.validate()?;
+        }
+        {
+            let _stage = enter(Stage::LirValidation);
+            lir.validate()?;
+        }
+        {
+            let _stage = enter(Stage::Effects);
+            crate::analysis::effects::validate_noescape(&lir)?;
+        }
+        let access = {
+            let _stage = enter(Stage::Readonly);
+            crate::analysis::readonly::analyze(&lir)?
+        };
         for (id, summary) in access.into_iter().enumerate() {
             hir.functions[id].access = summary.clone();
             lir.functions[id].access = summary;
         }
-        hir.validate()?;
-        lir.validate()?;
+        {
+            let _stage = enter(Stage::HirValidation);
+            hir.validate()?;
+        }
+        {
+            let _stage = enter(Stage::LirValidation);
+            lir.validate()?;
+        }
         Ok(lir)
     }
     fn resolve_effects(

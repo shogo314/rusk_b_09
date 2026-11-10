@@ -32,6 +32,7 @@ const FILES: &[(&str, &str)] = &[
     ),
 ];
 pub(crate) fn load() -> Result<crate::compiler::Source, String> {
+    let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::StandardLibrary);
     Ok(crate::compiler::Source::standard(
         crate::frontend::source::embedded("prelude.rusk", FILES)?.statements,
     ))

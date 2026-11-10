@@ -163,6 +163,87 @@ fn source_and_io_errors_still_exit_with_one() {
 }
 
 #[test]
+fn invalid_sources_are_user_diagnostics_and_preserve_existing_output() {
+    for (source, expected) in [
+        ("let := ;", "syntax error"),
+        ("wt missing;", "main.rusk:"),
+        ("let x:Int:=\"wrong\";", "main.rusk:"),
+        ("fixed let x:Int;loop{x:=1;}", "cannot rebind fixed"),
+        ("readonly let x:=1;x=2;", "readonly"),
+        (
+            "fn leak(noescape x:Int)->Int{return x;}leak(1);",
+            "noescape",
+        ),
+        (
+            "extern fn f<T>(x:T){code:\"@{Missing}\",} f(1);",
+            "main.rusk:",
+        ),
+        (
+            "extern type<T> Cell {cpp_name:\"{T\",} let c:Cell<Int>;",
+            "main.rusk:",
+        ),
+        ("include \"missing.rusk\";", "cannot load"),
+        (
+            "extern symbol missing {code_file:\"missing.hpp\",}",
+            "main.rusk:",
+        ),
+    ] {
+        let case = Case::new(source);
+        let target = case.0.join("a.cpp");
+        fs::write(&target, b"previous successful output").unwrap();
+        for stage in ["hir", "lir", "cpp"] {
+            for no_opt in [false, true] {
+                let mut args = vec!["compile", "main.rusk", "--emit", stage];
+                if no_opt {
+                    args.push("--no-opt");
+                }
+                let output = cli(&case, &args);
+                let error = String::from_utf8_lossy(&output.stderr);
+                assert_eq!(output.status.code(), Some(1), "{source}: {error}");
+                assert!(output.stdout.is_empty(), "{source}: {output:?}");
+                assert!(error.contains(expected), "{source}: {error}");
+                assert!(
+                    !error.contains("internal compiler error"),
+                    "{source}: {error}"
+                );
+                assert!(!error.contains("panicked at"), "{source}: {error}");
+                assert_eq!(fs::read(&target).unwrap(), b"previous successful output");
+            }
+        }
+    }
+}
+
+#[test]
+fn output_write_errors_are_user_diagnostics() {
+    let case = Case::new("wt 1;");
+    let output = cli(&case, &["compile", "main.rusk", "-o", "missing/output.cpp"]);
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{error}");
+    assert!(error.contains("missing/output.cpp"), "{error}");
+    assert!(!error.contains("internal compiler error"), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
+fn closed_dependency_output_is_an_io_error_not_a_panic() {
+    use std::{os::fd::OwnedFd, os::unix::net::UnixStream, process::Stdio};
+    let case = Case::new("wt 1;");
+    let (reader, writer) = UnixStream::pair().unwrap();
+    drop(reader);
+    let output = Command::new(env!("CARGO_BIN_EXE_rusk"))
+        .current_dir(&case.0)
+        .args(["dependencies", "main.rusk"])
+        .stdout(Stdio::from(OwnedFd::from(writer)))
+        .stderr(Stdio::piped())
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(1), "{error}");
+    assert!(error.contains("stdout:"), "{error}");
+    assert!(!error.contains("internal compiler error"), "{error}");
+}
+
+#[test]
 fn dash_prefixed_files_can_be_passed_after_the_option_separator() {
     let case = Case::new("wt 7;");
     fs::rename(case.0.join("main.rusk"), case.0.join("-source.rusk")).unwrap();

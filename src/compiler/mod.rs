@@ -140,9 +140,19 @@ impl Compiler {
         sources: &[Source],
         emit: crate::backend::Emit,
     ) -> Result<String, String> {
-        self.register_declarations(sources)?;
-        self.prepare_bodies(sources)?;
-        let mut hir = self.build_hir();
+        use crate::diagnostics::{Stage, enter};
+        {
+            let _stage = enter(Stage::Declarations);
+            self.register_declarations(sources)?;
+        }
+        {
+            let _stage = enter(Stage::TypeChecking);
+            self.prepare_bodies(sources)?;
+        }
+        let mut hir = {
+            let _stage = enter(Stage::Hir);
+            self.build_hir()
+        };
         let lir = self.analyze_program(&mut hir)?;
         if matches!(emit, crate::backend::Emit::Hir) {
             return Ok(format!("{hir:#?}\n"));
@@ -150,6 +160,7 @@ impl Compiler {
         if matches!(emit, crate::backend::Emit::Lir) {
             return Ok(format!("{lir:#?}\n"));
         }
+        let _stage = enter(Stage::Cpp);
         Ok(crate::backend::emit_program(
             &lir,
             &self.cpp_context(),

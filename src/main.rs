@@ -2,6 +2,7 @@ mod analysis;
 mod backend;
 mod cli;
 mod compiler;
+mod diagnostics;
 mod frontend;
 mod ir;
 mod native;
@@ -9,14 +10,22 @@ mod stdlib;
 
 use clap::Parser;
 use cli::{Cli, Command, CompileArgs, EmitStage};
+use diagnostics::{Stage, enter};
 use frontend::{parse_cst, source};
+use std::io::Write;
 
 fn run(command: Command) -> Result<(), String> {
     match command {
         Command::Compile(args) => compile(args),
         Command::Dependencies { file } => {
-            for path in source::load(&file)?.dependencies {
-                println!("{}", path.display());
+            let dependencies = {
+                let _stage = enter(Stage::SourceLoading);
+                source::load(&file)?.dependencies
+            };
+            let _stage = enter(Stage::Output);
+            let mut stdout = std::io::stdout().lock();
+            for path in dependencies {
+                writeln!(stdout, "{}", path.display()).map_err(|e| format!("stdout: {e}"))?;
             }
             Ok(())
         }
@@ -24,6 +33,7 @@ fn run(command: Command) -> Result<(), String> {
 }
 
 fn compile(args: CompileArgs) -> Result<(), String> {
+    let _stage = enter(Stage::SourceLoading);
     let CompileArgs {
         file,
         output,
@@ -38,6 +48,7 @@ fn compile(args: CompileArgs) -> Result<(), String> {
         } else {
             format!("{:#?}\n", source::load(&file)?.statements)
         };
+        let _stage = enter(Stage::Output);
         std::fs::write(&output, result).map_err(|e| format!("{}: {e}", output.display()))?;
         return Ok(());
     }
@@ -50,12 +61,18 @@ fn compile(args: CompileArgs) -> Result<(), String> {
     let source = source::load(&file)?.statements;
     let cpp = compiler::Compiler::with_optimization(!no_opt)
         .compile(&[stdlib::load()?, compiler::Source::user(source)], emit)?;
+    let _stage = enter(Stage::Output);
     std::fs::write(&output, cpp).map_err(|e| format!("{}: {e}", output.display()))?;
     Ok(())
 }
 fn main() {
-    if let Err(e) = run(Cli::parse().command) {
-        eprintln!("{e}");
+    diagnostics::install_panic_hook();
+    let command = {
+        let _stage = enter(Stage::Arguments);
+        Cli::parse().command
+    };
+    if let Err(e) = run(command) {
+        let _ = writeln!(std::io::stderr().lock(), "{e}");
         std::process::exit(1);
     }
 }
