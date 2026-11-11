@@ -68,12 +68,17 @@ not_in_nav: |
   /reference/beta*.md
   /reference/minmax.md
 markdown_extensions:
+  - md_in_html
   - attr_list
   - admonition
   - fenced_code
   - tables
 hooks:
   - tools/mkdocs_api.py
+extra_javascript:
+  - assets/javascripts/api-search.js
+extra_css:
+  - assets/stylesheets/api-search.css
 watch:
   - lib
   - src

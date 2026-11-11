@@ -34,10 +34,13 @@ python3 -m venv .venv-docs
 
 表示されたローカルURLを開きます。ビルド時に`tools/mkdocs_api.py`がCargo経由で`rusk doc`を実行し、APIリファレンスを組み込みます。Rust stableが必要です。APIの説明を変更する場合は`lib/`の宣言と文書コメントを編集します。 [APIリファレンス](../library/api.md)
 
+APIリファレンスの検索欄は、名前・署名・説明を大文字小文字の区別なしで絞り込みます。空白で区切った複数の検索語はすべてを含むAPIに一致します。検索状態はURLの`api`に保存します。検索と表示は生成済みページ内で行います。
+
 ページ追加時は`mkdocs.yml`のnavと関連ページへの相対リンクを更新します。履歴と互換案内ページは`not_in_nav`で主ナビゲーションの対象から外し、入口からたどれるようにします。`search.exclude`も指定し、古い説明を現在の仕様として検索させないようにします。
 
 ```bash
 .venv-docs/bin/python -m mkdocs build --strict
+.venv-docs/bin/python -m unittest discover -s tests -p test_mkdocs_api.py
 cargo test --locked --test documentation --test extern_generics --test api
 ```
 
