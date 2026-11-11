@@ -851,29 +851,31 @@ fn block_statement(b: &g::BlockStatement<'_>) -> Result<Stmt, String> {
     }
 }
 fn block_parts(
-    items: &g::BlockItems<'_>,
+    mut items: &g::BlockItems<'_>,
     statements: &mut Vec<Stmt>,
 ) -> Result<Option<Box<Expr>>, String> {
-    match items {
-        g::BlockItems::SimpleStatementBlockItems(x) => {
-            statements.push(simple_stmt(&x.simple_statement)?);
-            block_parts(&x.block_items, statements)
-        }
-        g::BlockItems::BlockStatementBlockItems(x) => {
-            statements.push(block_statement(&x.block_statement)?);
-            block_parts(&x.block_items, statements)
-        }
-        g::BlockItems::StatementExprBlockTail(x) => {
-            let value = statement_expr(&x.statement_expr)?;
-            match x.block_tail.as_ref() {
-                g::BlockTail::SemicolonBlockItems(tail) => {
-                    statements.push(Stmt::Expr(value));
-                    block_parts(&tail.block_items, statements)
-                }
-                g::BlockTail::BlockTailEmpty(_) => Ok(Some(Box::new(value))),
+    loop {
+        items = match items {
+            g::BlockItems::SimpleStatementBlockItems(x) => {
+                statements.push(simple_stmt(&x.simple_statement)?);
+                &x.block_items
             }
-        }
-        g::BlockItems::BlockItemsEmpty(_) => Ok(None),
+            g::BlockItems::BlockStatementBlockItems(x) => {
+                statements.push(block_statement(&x.block_statement)?);
+                &x.block_items
+            }
+            g::BlockItems::StatementExprBlockTail(x) => {
+                let value = statement_expr(&x.statement_expr)?;
+                match x.block_tail.as_ref() {
+                    g::BlockTail::SemicolonBlockItems(tail) => {
+                        statements.push(Stmt::Expr(value));
+                        &tail.block_items
+                    }
+                    g::BlockTail::BlockTailEmpty(_) => return Ok(Some(Box::new(value))),
+                }
+            }
+            g::BlockItems::BlockItemsEmpty(_) => return Ok(None),
+        };
     }
 }
 fn block(b: &g::Block<'_>) -> Result<Stmt, String> {

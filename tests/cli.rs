@@ -334,6 +334,20 @@ fn syntax_and_type_mutations_use_the_normal_cli_error_path() {
 }
 
 #[test]
+fn nested_blocks_with_many_statements_can_be_lowered() {
+    let prefix = format!("{{{}", "wt 1;".repeat(900));
+    let source = format!("fn f(){{{}{}}} f();", prefix.repeat(3), "}".repeat(3));
+    let case = Case::new(&source);
+    let output = cli(&case, &["compile", "main.rusk"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(case.0.join("a.cpp").exists());
+}
+
+#[test]
 fn output_write_errors_are_user_diagnostics() {
     let case = Case::new("wt 1;");
     let output = cli(&case, &["compile", "main.rusk", "-o", "missing/output.cpp"]);
