@@ -331,6 +331,68 @@ pub struct Expr {
     pub kind: ExprKind,
     pub span: Span,
 }
+
+const MAX_EXPRESSION_DEPTH: usize = 128;
+
+impl Expr {
+    fn check_depth(&self, depth: usize) -> Result<(), String> {
+        if depth >= MAX_EXPRESSION_DEPTH {
+            return Err(self.span.error(format!(
+                "expression nesting limit ({MAX_EXPRESSION_DEPTH}) exceeded"
+            )));
+        }
+        let depth = depth + 1;
+        let check = |expr: &Expr| expr.check_depth(depth);
+        match &self.kind {
+            ExprKind::Literal(..) | ExprKind::Var(_) => {}
+            ExprKind::Array(items) | ExprKind::Tuple(items) | ExprKind::Call(_, items) => {
+                items.iter().try_for_each(check)?;
+            }
+            ExprKind::Field(owner, _)
+            | ExprKind::Lambda(_, owner)
+            | ExprKind::Unary(_, owner)
+            | ExprKind::Unwrap(owner) => check(owner)?,
+            ExprKind::Assign(_, a, b)
+            | ExprKind::Binary(_, a, b)
+            | ExprKind::Coalesce(a, b)
+            | ExprKind::Index(a, b)
+            | ExprKind::Logical(_, a, b)
+            | ExprKind::Range(a, b)
+            | ExprKind::Repeat(a, b) => {
+                check(a)?;
+                check(b)?;
+            }
+            ExprKind::Invoke(callee, args) => {
+                check(callee)?;
+                args.iter().try_for_each(check)?;
+            }
+            ExprKind::Record(_, fields) => fields.iter().try_for_each(|(_, value)| check(value))?,
+            ExprKind::CompareChain(first, rest) => {
+                check(first)?;
+                rest.iter().try_for_each(|(_, value, _)| check(value))?;
+            }
+            ExprKind::Block(statements, tail) => {
+                for statement in statements {
+                    statement.check_expr_depth(depth)?;
+                }
+                tail.iter().try_for_each(|tail| check(tail))?;
+            }
+            ExprKind::If(condition, yes, no) => {
+                check(condition.expression())?;
+                check(yes)?;
+                check(no)?;
+            }
+            ExprKind::Match(value, arms) => {
+                check(value)?;
+                for arm in arms {
+                    arm.guard.iter().try_for_each(check)?;
+                    check(&arm.body)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Pattern {
     pub kind: PatternKind,
@@ -350,10 +412,14 @@ pub enum Condition {
     Let(Pattern, Expr),
 }
 impl Condition {
-    pub fn span(&self) -> &Span {
+    fn expression(&self) -> &Expr {
         match self {
-            Self::Expr(e) | Self::Let(_, e) => &e.span,
+            Self::Expr(e) | Self::Let(_, e) => e,
         }
+    }
+
+    pub fn span(&self) -> &Span {
+        &self.expression().span
     }
 }
 #[derive(Clone, Debug)]
@@ -434,6 +500,45 @@ pub enum Stmt {
     Break(Span, Option<Name>),
     Continue(Span, Option<Name>),
     Expr(Expr),
+}
+impl Stmt {
+    fn check_expr_depth(&self, depth: usize) -> Result<(), String> {
+        let check = |expr: &Expr| expr.check_depth(depth);
+        match self {
+            Stmt::Expr(e) | Stmt::Match(e) => check(e)?,
+            Stmt::Return(_, value) => value.iter().try_for_each(check)?,
+            Stmt::Let(_, _, Some(Initializer::Shared(e) | Initializer::Copied(e))) => check(e)?,
+            Stmt::Input(items) => {
+                for (_, _, args) in items {
+                    args.iter().try_for_each(check)?;
+                }
+            }
+            Stmt::Output(items) => items.iter().try_for_each(check)?,
+            Stmt::Block(items, tail) => {
+                for item in items {
+                    item.check_expr_depth(depth)?;
+                }
+                tail.iter().try_for_each(|tail| check(tail))?;
+            }
+            Stmt::If(condition, body, otherwise) | Stmt::While(condition, body, otherwise) => {
+                check(condition.expression())?;
+                body.check_expr_depth(depth)?;
+                if let Some(otherwise) = otherwise {
+                    otherwise.check_expr_depth(depth)?;
+                }
+            }
+            Stmt::For(_, source, body, otherwise) => {
+                check(source)?;
+                body.check_expr_depth(depth)?;
+                if let Some(otherwise) = otherwise {
+                    otherwise.check_expr_depth(depth)?;
+                }
+            }
+            Stmt::Labeled(_, body) | Stmt::Loop(body) => body.check_expr_depth(depth)?,
+            _ => {}
+        }
+        Ok(())
+    }
 }
 fn props(p: &g::Properties<'_>) -> Result<BTreeMap<String, String>, String> {
     let mut result = BTreeMap::new();
@@ -854,11 +959,13 @@ fn match_expr(m: &g::MatchExpr<'_>) -> Result<Expr, String> {
     })
 }
 fn expr(e: &g::Expr<'_>) -> Result<Expr, String> {
-    match e {
+    let result = match e {
         g::Expr::MatchExpr(x) => match_expr(&x.match_expr),
         g::Expr::PlainExpr(x) => plain_expr(&x.plain_expr),
         g::Expr::IfExpr(x) => if_expr(&x.if_expr),
-    }
+    }?;
+    result.check_depth(0)?;
+    Ok(result)
 }
 fn assignment(left: Expr, op: &g::AssignOp<'_>, right: &g::Expr<'_>) -> Result<Expr, String> {
     let (op, t) = match op {
@@ -898,7 +1005,7 @@ fn plain_expr(e: &g::PlainExpr<'_>) -> Result<Expr, String> {
     }
 }
 fn statement_expr(e: &g::StatementExpr<'_>) -> Result<Expr, String> {
-    match e {
+    let result = match e {
         g::StatementExpr::Lambda(x) => lambda(&x.lambda),
         g::StatementExpr::StatementBinaryStatementExprOpt(x) => {
             let first = match x.statement_binary.statement_unary.as_ref() {
@@ -931,7 +1038,9 @@ fn statement_expr(e: &g::StatementExpr<'_>) -> Result<Expr, String> {
                 Ok(value)
             }
         }
-    }
+    }?;
+    result.check_depth(0)?;
+    Ok(result)
 }
 fn unary_value(op: &g::UnaryOp<'_>, value: Expr) -> Expr {
     let t = unary_token(op);
@@ -1022,47 +1131,41 @@ fn precedence(op: &str) -> u8 {
     }
 }
 fn binary(first: Expr, rest: Vec<((String, Span), Expr)>) -> Result<Expr, String> {
-    let mut values = std::iter::once(first).chain(rest.iter().map(|(_, v)| v.clone()));
-    let first = values.next().unwrap();
-    let mut ops = rest
-        .iter()
-        .map(|((op, span), _)| (op.clone(), span.clone()))
-        .peekable();
     fn parse(
         left: Expr,
         minimum: u8,
-        values: &mut impl Iterator<Item = Expr>,
-        ops: &mut std::iter::Peekable<impl Iterator<Item = (String, Span)>>,
+        rest: &mut std::iter::Peekable<impl Iterator<Item = ((String, Span), Expr)>>,
+        depth: usize,
     ) -> Result<Expr, String> {
+        if depth >= MAX_EXPRESSION_DEPTH {
+            return Err(left.span.error(format!(
+                "expression nesting limit ({MAX_EXPRESSION_DEPTH}) exceeded"
+            )));
+        }
         let mut left = left;
         let mut ordered = false;
-        while let Some((op, _)) = ops.peek() {
+        while let Some(((op, _), _)) = rest.peek() {
             let p = precedence(op);
             if p < minimum {
                 break;
             }
-            let (op, span) = ops.next().unwrap();
+            let ((op, span), right) = rest.next().unwrap();
             if op == "<=>" && std::mem::replace(&mut ordered, true) {
                 return Err(span.error("'<=>' cannot be chained without parentheses"));
             }
-            let right = parse(
-                values.next().unwrap(),
-                if op == "??" { p } else { p + 1 },
-                values,
-                ops,
-            )?;
+            let right = parse(right, if op == "??" { p } else { p + 1 }, rest, depth + 1)?;
             if p == 8 {
-                let mut rest = vec![(op, right, span.clone())];
-                while ops.peek().is_some_and(|(op, _)| precedence(op) == 8) {
-                    let (op, span) = ops.next().unwrap();
-                    let right = parse(values.next().unwrap(), 9, values, ops)?;
-                    rest.push((op, right, span));
+                let mut comparisons = vec![(op, right, span.clone())];
+                while rest.peek().is_some_and(|((op, _), _)| precedence(op) == 8) {
+                    let ((op, span), right) = rest.next().unwrap();
+                    let right = parse(right, 9, rest, depth + 1)?;
+                    comparisons.push((op, right, span));
                 }
-                let kind = if rest.len() == 1 {
-                    let (op, right, _) = rest.pop().unwrap();
+                let kind = if comparisons.len() == 1 {
+                    let (op, right, _) = comparisons.pop().unwrap();
                     ExprKind::Binary(op, Box::new(left), Box::new(right))
                 } else {
-                    ExprKind::CompareChain(Box::new(left), rest)
+                    ExprKind::CompareChain(Box::new(left), comparisons)
                 };
                 left = Expr { span, kind };
                 continue;
@@ -1082,7 +1185,7 @@ fn binary(first: Expr, rest: Vec<((String, Span), Expr)>) -> Result<Expr, String
         }
         Ok(left)
     }
-    parse(first, 1, &mut values, &mut ops)
+    parse(first, 1, &mut rest.into_iter().peekable(), 0)
 }
 fn unary(e: &g::Unary<'_>) -> Result<Expr, String> {
     match e {

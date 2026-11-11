@@ -11,7 +11,9 @@ pub struct RuskGrammar<'t> {
 }
 impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
     fn rusk(&mut self, arg: &Rusk<'t>) -> parol_runtime::Result<()> {
-        self.root = Some(arg.clone());
+        if self.syntax_error.is_none() {
+            self.root = Some(arg.clone());
+        }
         Ok(())
     }
 
@@ -66,6 +68,31 @@ impl<'t> RuskGrammarTrait<'t> for RuskGrammar<'t> {
         Ok(())
     }
     fn block(&mut self, arg: &g::Block<'t>) -> parol_runtime::Result<()> {
+        // BlockItems is recursive in the CST to distinguish a final value
+        // expression from a statement. The generated CST clone is recursive.
+        const MAX_BLOCK_ITEMS: usize = 1024;
+        let mut items = arg.block_items.as_ref();
+        let mut statements = 0;
+        loop {
+            items = match items {
+                g::BlockItems::SimpleStatementBlockItems(item) => &item.block_items,
+                g::BlockItems::BlockStatementBlockItems(item) => &item.block_items,
+                g::BlockItems::StatementExprBlockTail(item) => match item.block_tail.as_ref() {
+                    g::BlockTail::SemicolonBlockItems(tail) => &tail.block_items,
+                    g::BlockTail::BlockTailEmpty(_) => break,
+                },
+                g::BlockItems::BlockItemsEmpty(_) => break,
+            };
+            statements += 1;
+            if statements > MAX_BLOCK_ITEMS {
+                self.syntax_error.get_or_insert_with(|| {
+                    super::ast::Span::token(&arg.l_brace).error(format!(
+                        "block statement limit ({MAX_BLOCK_ITEMS}) exceeded"
+                    ))
+                });
+                break;
+            }
+        }
         if self.collect_layout {
             self.layout.blocks.insert(arg.l_brace.location.start());
         }

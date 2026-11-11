@@ -236,7 +236,10 @@ fn generated_deep_inputs_report_limits_without_replacing_output() {
         let output = cli(&case, &args);
         let error = String::from_utf8_lossy(&output.stderr);
         assert_eq!(output.status.code(), Some(1), "{args:?}: {error}");
-        assert!(error.contains("main.rusk: parser nesting limit"), "{error}");
+        assert!(
+            error.contains("main.rusk:1:") && error.contains("delimiter nesting limit"),
+            "{error}"
+        );
         assert_eq!(fs::read_to_string(&source).unwrap(), parens);
         assert_eq!(fs::read_to_string(&target).unwrap(), "previous output");
     }
@@ -257,6 +260,26 @@ fn generated_deep_inputs_report_limits_without_replacing_output() {
             );
             assert_eq!(fs::read_to_string(&target).unwrap(), "previous output");
         }
+    }
+    let mut layered = "x".to_owned();
+    for _ in 0..25 {
+        layered = format!("({layered}){}", "+x".repeat(300));
+    }
+    let deep_function = format!("fn f<T>(x:T)->T{{return {layered};}}wt f(1);");
+    let wide_block = format!("fn f(){{{}}} f();", "wt 1;".repeat(2400));
+    for (program, message) in [
+        (deep_function, "expression nesting limit"),
+        (wide_block, "block statement limit"),
+    ] {
+        fs::write(&source, program).unwrap();
+        let output = cli(&case, &["compile", "main.rusk", "--emit", "ast"]);
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{error}");
+        assert!(
+            error.contains("main.rusk:1:") && error.contains(message),
+            "{error}"
+        );
+        assert_eq!(fs::read_to_string(&target).unwrap(), "previous output");
     }
 
     fs::write(&source, "include \"0.rusk\";").unwrap();

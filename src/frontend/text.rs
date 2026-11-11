@@ -49,6 +49,35 @@ pub(crate) struct Declaration {
     pub column: u32,
 }
 
+// Parol counts the recursive rules used by flat lists as well. Check actual
+// delimiter nesting separately so long lists can reach their own limits.
+pub(super) fn check_delimiter_depth(text: &str, file: &str) -> Result<(), String> {
+    const MAX_DEPTH: usize = 128;
+    if text.len() <= MAX_DEPTH {
+        return Ok(());
+    }
+    let scanner = RuskGrammarScanner::new();
+    let mut depth = 0usize;
+    for found in scanner.find_matches(text, 0) {
+        match &text[found.span.clone()] {
+            "(" | "[" | "{" => {
+                depth += 1;
+                if depth > MAX_DEPTH {
+                    let before = &text[..found.span.start];
+                    let line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+                    let column = before.rsplit('\n').next().unwrap_or("").chars().count() + 1;
+                    return Err(format!(
+                        "{file}:{line}:{column}: delimiter nesting limit ({MAX_DEPTH}) exceeded"
+                    ));
+                }
+            }
+            ")" | "]" | "}" => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn tokenize(text: &str) -> Vec<Token<'_>> {
     let mut tokens = vec![];
     scan(text, 0, &mut tokens);

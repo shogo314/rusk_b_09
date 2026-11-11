@@ -36,6 +36,7 @@ fn parse_grammar<'t>(
     collect_layout: bool,
 ) -> Result<rusk_grammar::RuskGrammar<'t>, String> {
     let _stage = crate::diagnostics::enter(crate::diagnostics::Stage::Parsing);
+    text::check_delimiter_depth(text, file)?;
     let mut grammar = rusk_grammar::RuskGrammar {
         collect_layout,
         ..Default::default()
