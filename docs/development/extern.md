@@ -170,10 +170,10 @@ externによるコールバックの呼び出し回数や他の効果は保守�
 
 ## externの引数契約 { #extern-parameter-contracts }
 
-通常のexternとジェネリックexternの引数に `readonly`・`noescape` を指定できる。Rusk関数では本体を解析して注釈を検査する。externでは作成者がC++本体の動作を保証し、処理系はその宣言を呼び出し側の解析に使う。契約違反の検出は保証しない。
+通常のexternとジェネリックexternの引数に `fixed`・`rebindable`・`readonly`・`mutable`・`noescape`・`escape` を指定できる。Rusk関数では本体を解析して注釈を検査する。externでは作成者がC++本体の動作を保証し、処理系はその宣言の`readonly`・`noescape`を呼び出し側の解析に使う。契約違反の検出は保証しない。
 
 ```rusk
-extern fn detached_int(readonly noescape value: Int) -> Int {
+extern fn detached_int(fixed readonly noescape value: Int) -> Int {
     cpp_name: "detached_int",
     code: "Obj<std::int64_t> detached_int(Obj<std::int64_t> value, Loc) { return make_obj<std::int64_t>(*value); }",
 }
@@ -186,7 +186,8 @@ wt original, result;
 - `readonly` は、呼び出し中にその引数を経由して共有値・要素・フィールド・コンテナの構造を変更しないことを保証する。返却や保持を許す場合、呼び出し元ですでに付いている読み取り専用の制約も伝播し得る。
 - `noescape` は、その引数やその要素・フィールド・捕捉値を、戻り値や外部の格納先に共有として残さないことを保証する。
 - 省略、`mutable`、`escape` は対応する効果を未知として扱う。別の引数にも同じ値を渡した場合は、各引数経由の効果を検査する。I/O、外部状態の変更、失敗、停止性も未知のまま扱う。
-- 契約はC++の `const`、引数の所有規約、戻り値の新規割り当てを指定しない。 `fixed`・`rebindable` はRuskの関数本体がある引数で使用する。標準ライブラリ内部の `effects`・`aliases`・`derive` との併用はできない。
+- `fixed` はC++実装内の仮引数の共有先を結び直さないという作成者の保証として受け付け、`rebindable`は結び直しを許す。これらの注釈だけの場合、共有値の変更・保持・返却は未知として解析する。重複・矛盾の検査は通常のRusk関数と同じ。
+- 契約はC++の `const`、引数の所有規約、戻り値の新規割り当てを指定しない。 `readonly`・`mutable`・`noescape`・`escape` と、標準ライブラリ内部の `effects`・`aliases`・`derive` との併用はできない。
 
 ジェネリックexternでは、具体化されたC++本体とそこから呼ぶ関数が契約を守る必要がある。具体化やコールバックを含む例は [extern_contracts.rusk](https://github.com/shogo314/rusk_b_09/blob/main/examples/beta09/extern_contracts.rusk) を参照する。
 

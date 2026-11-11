@@ -443,7 +443,7 @@ fn invalid_native_generics_report_rusk_source_locations() {
         "extern fn f<T>(x:T,x:T){code:\"unused\",}",
         "extern fn f<T>(x:T){code:\"unused\",} fn f<U>(x:U){}",
         "extern fn f<T>(readonly mutable x:T){code:\"unused\",}",
-        "extern fn f<T>(fixed x:T){code:\"unused\",}",
+        "extern fn f<T>(fixed rebindable x:T){code:\"unused\",}",
         "extern fn f<T>(x:T){effects:\"read_fresh\",code:\"unused\",}",
         "extern fn f<T>(x:T){code:\"unused\",} f::<Missing>(1);",
     ] {

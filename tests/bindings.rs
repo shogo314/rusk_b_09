@@ -128,11 +128,13 @@ fn conditional_initialization_and_loop_backedges_cannot_initialize_fixed_twice()
 }
 
 #[test]
-fn modifier_conflicts_and_unsupported_external_binding_contracts_are_diagnosed() {
+fn modifier_conflicts_and_duplicate_overloads_are_diagnosed() {
     for source in [
         "fixed fixed let x:=1;",
         "rebindable rebindable let x:=1;",
         "fn f(fixed fixed x:Int){}",
+        r#"extern fn f(fixed fixed x:Int){cpp_name:"f",code:"unused",}"#,
+        r#"extern fn f<T>(rebindable rebindable x:T){code:"unused",}"#,
     ] {
         rejects(source, "duplicate binding modifier");
     }
@@ -140,17 +142,64 @@ fn modifier_conflicts_and_unsupported_external_binding_contracts_are_diagnosed()
         "fixed rebindable let x:=1;",
         "rebindable fixed let x:=1;",
         "let f:=(fixed rebindable x:Int)=>x;",
+        r#"extern fn f(fixed rebindable x:Int){cpp_name:"f",code:"unused",}"#,
+        r#"extern fn f<T>(rebindable fixed x:T){code:"unused",}"#,
     ] {
         rejects(source, "conflicting binding modifiers");
     }
     rejects(
-        r#"extern fn f(fixed x:Int){cpp_name:"f",code:"ignored",}"#,
-        "binding modifiers on extern parameters require a Rusk function body",
-    );
-    rejects(
         "fn f(fixed x:Int){}fn f(rebindable x:Int){}",
         "duplicate function",
     );
+    rejects(
+        r#"extern fn f(fixed x:Int){cpp_name:"f",code:"unused",}extern fn f(rebindable x:Int){cpp_name:"g",code:"unused",}"#,
+        "duplicate function",
+    );
+}
+
+#[test]
+fn extern_binding_modifiers_accept_updates_rebinding_and_access_contracts() {
+    succeeds(
+        r#"
+extern fn bump(fixed mutable escape value:Int)->Int {
+    cpp_name:"bump_fixed",
+    code:"Obj<std::int64_t> bump_fixed(Obj<std::int64_t> value,Loc){++*value;return value;}",
+}
+extern fn redirect(rebindable value:Int)->Int {
+    cpp_name:"redirect_binding",
+    code:"Obj<std::int64_t> redirect_binding(Obj<std::int64_t> value,Loc){value=make_obj<std::int64_t>(9);return value;}",
+}
+extern fn detached<T>(fixed readonly noescape value:T)->T {
+    code:"@{return T} @{fn}(Obj<@{T}> value,Loc loc){return @{call copy(T)->T}(value,loc);}",
+}
+extern fn choose<T>(rebindable value:T,other:T)->T {
+    code:"@{return T} @{fn}(Obj<@{T}> value,Obj<@{T}> other,Loc){value=other;return @{finish T}(std::move(value));}",
+}
+fixed let original:=1;
+wt bump(original),original,redirect(original),original;
+let indirect:=bump;
+wt indirect(original),original;
+readonly let source:=4;
+let result:=detached(source);
+result=8;
+wt source,result,choose(original,7),original,choose("a","b");
+choose({},{});
+"#,
+        "2 2 9 2\n3 3\n4 8 7 3 b\n",
+    );
+    for parameter in ["fixed", "rebindable"] {
+        let definitions = format!(
+            "extern fn identity({parameter} value:Int)->Int{{cpp_name:\"external_identity\",code:\"Obj<std::int64_t> external_identity(Obj<std::int64_t> value,Loc){{return value;}}\",}}"
+        );
+        rejects(
+            &format!("{definitions} readonly let x:=1;identity(x);"),
+            "readonly",
+        );
+        rejects(
+            &format!("{definitions} fn leak(noescape x:Int)->Int{{return identity(x);}}leak(1);"),
+            "noescape",
+        );
+    }
 }
 
 #[test]

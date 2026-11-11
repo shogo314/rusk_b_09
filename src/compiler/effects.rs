@@ -8,11 +8,6 @@ pub(super) fn extern_parameter_contract(
 
     let mut guarantees = Vec::with_capacity(arguments.len());
     for (argument, _) in arguments {
-        if let Some(annotation) = &argument.binding {
-            return Err(annotation
-                .span
-                .error("binding modifiers on extern parameters require a Rusk function body"));
-        }
         if (argument.access.is_some() || argument.escape.is_some())
             && ["effects", "aliases", "derive"]
                 .iter()

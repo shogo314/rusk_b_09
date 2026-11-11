@@ -14,7 +14,7 @@ wt count, current;         // 5 9
 
 ## 指定できる場所
 
-`let` の前、名前付き関数・型引数付き関数・無名関数の引数名の前に指定します。分解宣言では各変数に適用します。
+`let` の前、名前付き関数・型引数付き関数・無名関数・externの引数名の前に指定します。分解宣言では各変数に適用します。
 
 ```text
 fixed let (left, right) := (1, 2);
@@ -27,7 +27,9 @@ let next := (fixed value: Int) => value + 1;
 
 引数の指定は、その関数内の仮引数名に対する制限です。呼び出し元の名前へ制限を付け加えません。注釈だけでオーバーロードを区別することもできません。
 
-`fixed fixed` のような重複や `fixed rebindable` のような相反する指定はエラーです。外部関数の引数、構造体のフィールド、`in`・`for`・パターンの束縛には指定できません。[readonly / mutable](access.md) との組み合わせにも対応します。引数には[noescape / escape](escape.md)も指定できます。
+`fixed fixed` のような重複や `fixed rebindable` のような相反する指定はエラーです。構造体のフィールド、`in`・`for`・パターンの束縛には指定できません。[readonly / mutable](access.md) との組み合わせにも対応します。引数には[noescape / escape](escape.md)も指定できます。
+
+externの`fixed`は、C++実装内の仮引数の共有先を結び直さないという作成者の保証です。`rebindable`は結び直しを許します。処理系はこれらを受け付け、重複・矛盾を検査します。C++本体で保証が守られるかは作成者が確認します。呼び出し側の更新・保持・返却の解析には、`readonly`・`noescape`などの契約を使います。 [externの引数契約](../development/extern.md#extern-parameter-contracts)
 
 ## 中身の更新と別名
 
