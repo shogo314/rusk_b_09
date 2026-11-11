@@ -9,7 +9,8 @@ theme:
   name: material
   language: ja
   features:
-    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
     - search.highlight
     - search.suggest
     - content.code.copy
@@ -23,23 +24,27 @@ nav:
       - ソースの整形: getting-started/formatting.md
   - 言語リファレンス:
       - 基本構文と共有: reference/index.md
-      - 型の一覧と対応する操作: reference/types.md
-      - 構造体・タプル・型引数・include: reference/records.md
-      - 演算子: reference/operators.md
-      - 関数: reference/functions.md
-      - 関数の受け渡しと捕捉: reference/closures.md
-      - 制御構文: reference/control-flow.md
-      - ブロック式とラベル付きループ: reference/blocks-labels.md
-      - enumとmatch: reference/enums.md
-      - パターン分岐・ガード・if let: reference/patterns.md
-      - 分岐式・Option・比較の連鎖: reference/expressions.md
-      - 名前の結び直しの制限: reference/bindings.md
-      - 読み取り専用のアクセス: reference/access.md
-      - 共有の持ち出しの制限: reference/escape.md
-      - 型・共有・評価の規則: reference/semantics.md
-      - 文法一覧（EBNF）: reference/grammar.md
-      - 対応機能と制限: reference/status.md
-      - エラーと制限: reference/errors.md
+      - 型と関数:
+          - 型の一覧: reference/types.md
+          - 構造体・タプル・型引数: reference/records.md
+          - 演算子: reference/operators.md
+          - 関数: reference/functions.md
+          - 関数の受け渡しと捕捉: reference/closures.md
+      - 制御とパターン:
+          - 分岐とループ: reference/control-flow.md
+          - ブロック式とループラベル: reference/blocks-labels.md
+          - enumとmatch: reference/enums.md
+          - パターンとガード: reference/patterns.md
+          - 分岐式・Option・比較の連鎖: reference/expressions.md
+      - 共有と契約:
+          - fixedとrebindable: reference/bindings.md
+          - readonlyとmutable: reference/access.md
+          - noescapeとescape: reference/escape.md
+          - 型・共有・評価の規則: reference/semantics.md
+      - 文法と制限:
+          - 文法一覧（EBNF）: reference/grammar.md
+          - 対応機能と制限: reference/status.md
+          - エラーと制限: reference/errors.md
   - ライブラリ:
       - 標準ライブラリ: library/index.md
       - APIリファレンス: library/api.md
@@ -48,10 +53,10 @@ nav:
       - 辞書・集合と不在を返す操作: library/collections.md
       - Ruskで記述したデータ構造: library/data-structures.md
       - 関数を使う操作とデータ構造: library/algorithms.md
-  - 将来の方針: future.md
   - 開発ガイド:
       - 構成と開発の入口: development/index.md
       - 現在の作業計画: development/plan.md
+      - 将来の方針: future.md
       - 処理系とライブラリの境界: development/architecture.md
       - 変換パイプラインとIR: development/pipeline.md
       - extern・C++参照・契約: development/extern.md
